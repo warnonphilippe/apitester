@@ -34,15 +34,58 @@ export class ConfigStoreService {
     this.load.update((l) => ({ ...l, ...patch }));
   }
 
-  exportToFile(): void {
+  /**
+   * Saves the current config. When the browser supports the File System Access
+   * API, a native "Save As" dialog lets the user pick the name AND location.
+   * Otherwise we prompt for a file name and fall back to a regular download
+   * (the location is then the browser's default download folder).
+   */
+  async exportToFile(): Promise<void> {
     const data = {
       request: this.stripFiles(this.request()),
       load: this.load(),
     };
-    const blob = new Blob([JSON.stringify(data, null, 2)], {
-      type: 'application/json',
-    });
-    this.download(blob, 'config.apitester.json');
+    const json = JSON.stringify(data, null, 2);
+    const blob = new Blob([json], { type: 'application/json' });
+    const defaultName = 'config.apitester.json';
+
+    const picker = (
+      window as unknown as {
+        showSaveFilePicker?: (opts: unknown) => Promise<{
+          createWritable: () => Promise<{
+            write: (data: Blob) => Promise<void>;
+            close: () => Promise<void>;
+          }>;
+        }>;
+      }
+    ).showSaveFilePicker;
+
+    if (typeof picker === 'function') {
+      try {
+        const handle = await picker({
+          suggestedName: defaultName,
+          types: [
+            {
+              description: 'Configuration API Load Tester',
+              accept: { 'application/json': ['.json', '.apitester.json'] },
+            },
+          ],
+        });
+        const writable = await handle.createWritable();
+        await writable.write(blob);
+        await writable.close();
+        return;
+      } catch (err) {
+        // User cancelled the dialog -> abort silently; other errors -> fallback.
+        if (err instanceof DOMException && err.name === 'AbortError') return;
+      }
+    }
+
+    // Fallback: ask for a name, then download to the default folder.
+    const name = window.prompt('Nom du fichier de configuration :', defaultName);
+    if (name === null) return; // cancelled
+    const filename = name.trim() || defaultName;
+    this.download(blob, filename.endsWith('.json') ? filename : `${filename}.json`);
   }
 
   /** Returns true if the loaded config dropped non-serializable file fields. */
