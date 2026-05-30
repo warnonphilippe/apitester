@@ -29,8 +29,9 @@ export class ResultsStoreService {
   readonly anomalies = this._anomalies.asReadonly();
   readonly hasAnomalies = computed(() => this._anomalies().length > 0);
 
-  // in-progress (uncommitted) bucket accumulator
-  private currentSecond = -1;
+  // in-progress (uncommitted) bucket accumulator — flushed every second by onTick()
+  // currentBucketIndex = which 1-second slot we're currently filling (-1 = not started)
+  private currentBucketIndex = -1;
   private currentDurations: number[] = [];
   private currentErrors = 0;
   private currentSizes: number[] = [];
@@ -62,7 +63,7 @@ export class ResultsStoreService {
     this._anomalies.set([]);
     this._activeVus.set(0);
 
-    this.currentSecond = -1;
+    this.currentBucketIndex = -1;
     this.currentDurations = [];
     this.currentErrors = 0;
     this.currentSizes = [];
@@ -90,15 +91,11 @@ export class ResultsStoreService {
     this._activeVus.set(n);
   }
 
-  /** Ingest one real call result. Called on the main thread for every API call. */
+  /** Ingest one real call result. Called on the main thread for every API call.
+   *  Never commits a bucket — that is the exclusive responsibility of commitBucket()
+   *  called by the 1-second tick in load-test.service, avoiding any double-commit.
+   */
   add(r: SingleCallResult): void {
-    const second = Math.floor((r.timestamp - this.testStartMs) / 1000);
-    if (this.currentSecond === -1) this.currentSecond = second;
-    if (second !== this.currentSecond) {
-      this.commitBucket();
-      this.currentSecond = second;
-    }
-
     // Absolute minimum size: a response smaller than the configured minimum
     // is flagged as an error with a clear message.
     if (
@@ -154,16 +151,28 @@ export class ResultsStoreService {
     }
   }
 
-  /** Commit the in-progress bucket and refresh the public signals (called ~1/s). */
+  /** Commit the in-progress bucket and refresh signals.
+   *  Called ONLY by the 1-second timer in load-test.service — never from add().
+   *  This guarantees exactly one bucket row per elapsed second, no duplicates.
+   */
   commitBucket(): void {
     if (this.currentDurations.length === 0 && this.currentErrors === 0) {
       return;
     }
+    // Derive the slot index from the current wall clock, not from result timestamps.
+    // This means the bucket always maps cleanly to its 1-second tick.
+    const slotIndex = Math.floor((Date.now() - this.testStartMs) / 1000);
+    if (slotIndex === this.currentBucketIndex) {
+      // onTick fired twice in the same second (shouldn't happen, guard anyway).
+      return;
+    }
+    this.currentBucketIndex = slotIndex;
+
     const sorted = [...this.currentDurations].sort((a, b) => a - b);
     const count = this.currentDurations.length;
     const bucket: TimeSeriesBucket = {
-      t: this.testStartMs + this.currentSecond * 1000,
-      secondOffset: this.currentSecond,
+      t: this.testStartMs + slotIndex * 1000,
+      secondOffset: slotIndex,
       requestCount: count,
       errorCount: this.currentErrors,
       errorRatePct: count > 0 ? (this.currentErrors / count) * 100 : 0,
