@@ -68,7 +68,7 @@ export class HttpRunnerService {
   }
 
   private toResult(
-    response: HttpResponse<unknown>,
+    response: HttpResponse<ArrayBuffer>,
     t0: number,
     vuId: number,
     iterationId: number,
@@ -77,16 +77,17 @@ export class HttpRunnerService {
     response.headers.keys().forEach((k) => {
       headers[k] = response.headers.get(k) ?? '';
     });
+    const contentType = response.headers.get('Content-Type') ?? '';
     return {
       timestamp: Date.now(),
       durationMs: Math.round(performance.now() - t0),
       statusCode: response.status,
       isError: response.status >= 400,
-      responseBodySize: this.measureSize(response),
+      responseBodySize: this.measureSize(response.body, response.headers),
       vuId,
       iterationId,
       responseHeaders: headers,
-      responseBodyPreview: this.bodyPreview(response.body),
+      responseBodyPreview: this.bodyPreview(response.body, contentType),
     };
   }
 
@@ -98,13 +99,17 @@ export class HttpRunnerService {
   ): SingleCallDetail {
     let statusCode = 0;
     let detail = this.messageOf(err);
+    let size = 0;
     if (err instanceof HttpErrorResponse) {
       statusCode = err.status ?? 0;
+      const errBody = err.error instanceof ArrayBuffer ? err.error : null;
+      size = this.measureSize(errBody, err.headers);
+      const contentType = err.headers.get('Content-Type') ?? '';
       // status 0 means CORS/network failure
       detail =
         statusCode === 0
           ? `NETWORK_OR_CORS_ERROR: ${err.message}`
-          : this.bodyPreview(err.error) ?? err.message;
+          : this.bodyPreview(errBody, contentType) ?? err.message;
     } else if (this.messageOf(err).toLowerCase().includes('timeout')) {
       detail = 'TIMEOUT';
     }
@@ -113,7 +118,7 @@ export class HttpRunnerService {
       durationMs: Math.round(performance.now() - t0),
       statusCode,
       isError: true,
-      responseBodySize: 0,
+      responseBodySize: size,
       vuId,
       iterationId,
       errorDetail: detail,
@@ -124,7 +129,7 @@ export class HttpRunnerService {
   private request(
     config: RequestConfig,
     token: string | null,
-  ): Observable<HttpResponse<string>> {
+  ): Observable<HttpResponse<ArrayBuffer>> {
     const url = this.resolveUrl(config);
     const params = this.buildQueryParams(config.queryParams);
     const headers = this.buildHeaders(config, token);
@@ -135,7 +140,9 @@ export class HttpRunnerService {
       headers,
       params,
       observe: 'response',
-      responseType: 'text', // text lets us measure raw body size reliably
+      // arraybuffer => exact byte count for ANY payload (PDF, image, zip, JSON…).
+      // Text is decoded only for the human-readable preview.
+      responseType: 'arraybuffer',
     });
   }
 
@@ -216,26 +223,31 @@ export class HttpRunnerService {
     }
   }
 
-  private measureSize(response: HttpResponse<unknown>): number {
-    const cl = response.headers.get('Content-Length');
+  private measureSize(body: ArrayBuffer | null, headers: HttpHeaders): number {
+    // Exact decompressed byte length — works for binary (PDF, image…) and text.
+    if (body) return body.byteLength;
+    // No body materialized (e.g. HEAD): fall back to Content-Length if present.
+    const cl = headers.get('Content-Length');
     if (cl) {
       const n = Number(cl);
       if (!Number.isNaN(n) && n > 0) return n;
     }
-    const body = response.body;
-    if (body == null) return 0;
-    if (typeof body === 'string') return new TextEncoder().encode(body).length;
-    try {
-      return new TextEncoder().encode(JSON.stringify(body)).length;
-    } catch {
-      return 0;
-    }
+    return 0;
   }
 
-  private bodyPreview(body: unknown): string | undefined {
-    if (body == null) return undefined;
-    const s = typeof body === 'string' ? body : JSON.stringify(body);
-    return s.length > 2000 ? s.slice(0, 2000) + '…' : s;
+  private readonly TEXTUAL = /(text\/|json|xml|javascript|x-www-form-urlencoded|csv|html|graphql)/i;
+
+  private bodyPreview(body: ArrayBuffer | null, contentType: string): string | undefined {
+    if (!body || body.byteLength === 0) return undefined;
+    const isText = !contentType || this.TEXTUAL.test(contentType);
+    if (!isText) {
+      const type = contentType.split(';')[0].trim() || 'application/octet-stream';
+      return `[contenu binaire : ${body.byteLength} octets · ${type}]`;
+    }
+    // decode only the first slice for preview
+    const slice = body.byteLength > 4000 ? body.slice(0, 4000) : body;
+    const text = new TextDecoder('utf-8', { fatal: false }).decode(slice);
+    return body.byteLength > 4000 ? text + '…' : text;
   }
 
   private messageOf(err: unknown): string {
