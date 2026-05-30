@@ -35,10 +35,44 @@ import { ResultsComponent } from './features/results/results.component';
         </div>
       }
 
-      <main class="max-w-[1400px] mx-auto p-5 space-y-4">
-        <app-request-config />
-        <app-load-config />
-        <app-results />
+      <main class="max-w-[1400px] mx-auto px-5 pt-6 pb-10 space-y-8">
+
+        <!-- ① Requête -->
+        <div>
+          <div class="flex items-center gap-3 mb-3">
+            <span class="inline-flex items-center gap-1.5 px-2.5 py-1 rounded-full bg-blue-900/50 border border-blue-700 text-blue-300 text-xs font-semibold tracking-wide uppercase">
+              <svg class="w-3.5 h-3.5" fill="none" stroke="currentColor" stroke-width="2" viewBox="0 0 24 24"><path d="M13 10V3L4 14h7v7l9-11h-7z"/></svg>
+              Requête
+            </span>
+            <div class="flex-1 h-px bg-slate-700"></div>
+          </div>
+          <app-request-config />
+        </div>
+
+        <!-- ② Paramètres de charge -->
+        <div>
+          <div class="flex items-center gap-3 mb-3">
+            <span class="inline-flex items-center gap-1.5 px-2.5 py-1 rounded-full bg-amber-900/50 border border-amber-700 text-amber-300 text-xs font-semibold tracking-wide uppercase">
+              <svg class="w-3.5 h-3.5" fill="none" stroke="currentColor" stroke-width="2" viewBox="0 0 24 24"><circle cx="12" cy="12" r="10"/><polyline points="12 6 12 12 16 14"/></svg>
+              Test de charge
+            </span>
+            <div class="flex-1 h-px bg-slate-700"></div>
+          </div>
+          <app-load-config />
+        </div>
+
+        <!-- ③ Résultats -->
+        <div>
+          <div class="flex items-center gap-3 mb-3">
+            <span class="inline-flex items-center gap-1.5 px-2.5 py-1 rounded-full bg-emerald-900/50 border border-emerald-700 text-emerald-300 text-xs font-semibold tracking-wide uppercase">
+              <svg class="w-3.5 h-3.5" fill="none" stroke="currentColor" stroke-width="2" viewBox="0 0 24 24"><polyline points="22 12 18 12 15 21 9 3 6 12 2 12"/></svg>
+              Résultats
+            </span>
+            <div class="flex-1 h-px bg-slate-700"></div>
+          </div>
+          <app-results />
+        </div>
+
       </main>
     </div>
   `,
