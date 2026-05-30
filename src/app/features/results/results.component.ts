@@ -13,44 +13,43 @@ type ResultTab = 'stats' | 'anomalies' | 'errors';
   imports: [DecimalPipe, DatePipe, ChartPanelComponent],
   changeDetection: ChangeDetectionStrategy.OnPush,
   template: `
-    <section class="space-y-3">
-      <h2 class="text-sm font-semibold text-slate-300">Résultats</h2>
+    <section class="bg-slate-900 rounded-lg border border-slate-600 border-l-4 border-l-emerald-500 shadow-lg shadow-black/30 p-5 space-y-4">
 
       <!-- stat cards -->
       <div class="grid grid-cols-2 md:grid-cols-4 lg:grid-cols-6 gap-3">
-        <div class="bg-slate-900 border border-slate-700 rounded-lg p-3">
+        <div class="bg-slate-800 border border-slate-600 rounded-lg p-3">
           <div class="text-xs text-slate-400">Requêtes</div>
           <div class="text-2xl font-bold">{{ stats().totalRequests | number }}</div>
         </div>
-        <div class="bg-slate-900 border border-slate-700 rounded-lg p-3">
+        <div class="bg-slate-800 border border-slate-600 rounded-lg p-3">
           <div class="text-xs text-slate-400">Taux d'erreur</div>
           <div class="text-2xl font-bold" [class.text-red-400]="stats().errorRatePct > 0">
             {{ stats().errorRatePct | number: '1.0-1' }}%
           </div>
           <div class="text-xs text-slate-500">{{ stats().totalErrors }} erreurs</div>
         </div>
-        <div class="bg-slate-900 border border-slate-700 rounded-lg p-3">
+        <div class="bg-slate-800 border border-slate-600 rounded-lg p-3">
           <div class="text-xs text-slate-400">Débit</div>
           <div class="text-2xl font-bold">{{ stats().throughputRpm | number: '1.0-0' }}</div>
           <div class="text-xs text-slate-500">req/min</div>
         </div>
-        <div class="bg-slate-900 border border-slate-700 rounded-lg p-3">
+        <div class="bg-slate-800 border border-slate-600 rounded-lg p-3">
           <div class="text-xs text-slate-400">Temps réponse (ms)</div>
           <div class="text-sm font-bold">moy {{ stats().avgDurationMs | number: '1.0-0' }}</div>
           <div class="text-xs text-slate-400">
             min {{ stats().minDurationMs | number: '1.0-0' }} · max {{ stats().maxDurationMs | number: '1.0-0' }}
           </div>
         </div>
-        <div class="bg-slate-900 border border-slate-700 rounded-lg p-3">
+        <div class="bg-slate-800 border border-slate-600 rounded-lg p-3">
           <div class="text-xs text-slate-400">Percentiles (ms)</div>
           <div class="text-xs text-slate-300">P50 {{ stats().p50Ms | number: '1.0-0' }}</div>
           <div class="text-xs text-slate-300">P95 {{ stats().p95Ms | number: '1.0-0' }}</div>
           <div class="text-xs text-slate-300">P99 {{ stats().p99Ms | number: '1.0-0' }}</div>
         </div>
         <div
-          class="bg-slate-900 border rounded-lg p-3"
+          class="bg-slate-800 border rounded-lg p-3"
           [class.border-red-500]="store.hasAnomalies()"
-          [class.border-slate-700]="!store.hasAnomalies()"
+          [class.border-slate-600]="!store.hasAnomalies()"
         >
           <div class="text-xs text-slate-400">Taille réponse</div>
           <div class="text-sm font-bold">réf {{ stats().referenceSize | number }} o</div>
@@ -98,7 +97,7 @@ type ResultTab = 'stats' | 'anomalies' | 'errors';
       </div>
 
       @if (tab() === 'stats') {
-        <div class="bg-slate-900 border border-slate-700 rounded-lg overflow-auto max-h-96">
+        <div class="bg-slate-800/60 border border-slate-600 rounded-lg overflow-auto max-h-96">
           <table class="w-full text-xs">
             <thead class="bg-slate-800 text-slate-400 sticky top-0">
               <tr>
@@ -139,7 +138,7 @@ type ResultTab = 'stats' | 'anomalies' | 'errors';
       }
 
       @if (tab() === 'anomalies') {
-        <div class="bg-slate-900 border border-slate-700 rounded-lg overflow-auto max-h-96">
+        <div class="bg-slate-800/60 border border-slate-600 rounded-lg overflow-auto max-h-96">
           <table class="w-full text-xs">
             <thead class="bg-slate-800 text-slate-400 sticky top-0">
               <tr>
@@ -173,7 +172,7 @@ type ResultTab = 'stats' | 'anomalies' | 'errors';
       }
 
       @if (tab() === 'errors') {
-        <div class="bg-slate-900 border border-slate-700 rounded-lg overflow-auto max-h-96">
+        <div class="bg-slate-800/60 border border-slate-600 rounded-lg overflow-auto max-h-96">
           <table class="w-full text-xs">
             <thead class="bg-slate-800 text-slate-400 sticky top-0">
               <tr>

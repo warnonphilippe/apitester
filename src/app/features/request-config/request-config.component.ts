@@ -30,7 +30,7 @@ const VERB_CLASS: Record<HttpVerb, string> = {
   imports: [FormsModule, KvTableComponent],
   changeDetection: ChangeDetectionStrategy.OnPush,
   template: `
-    <section class="bg-slate-900 rounded-lg border border-slate-700">
+    <section class="bg-slate-900 rounded-lg border border-slate-600 border-l-4 border-l-blue-500 shadow-lg shadow-black/30">
       <!-- Top bar -->
       <div class="flex gap-2 p-3 border-b border-slate-700">
         <select
@@ -242,7 +242,7 @@ const VERB_CLASS: Record<HttpVerb, string> = {
 
     <!-- Single test result -->
     @if (singleResult(); as r) {
-      <section class="mt-3 bg-slate-900 rounded-lg border border-slate-700 p-4 text-sm">
+      <section class="mt-3 bg-slate-900 rounded-lg border border-slate-600 border-l-4 border-l-blue-500/50 shadow-md p-4 text-sm">
         <div class="flex items-center gap-4 mb-2">
           <span class="font-semibold">Résultat du test unique</span>
           <span [class]="r.isError ? 'text-red-400' : 'text-emerald-400'">

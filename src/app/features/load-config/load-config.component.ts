@@ -10,9 +10,9 @@ import { LoadConfig, RampMode } from '../../core/models/test-config.model';
   imports: [FormsModule],
   changeDetection: ChangeDetectionStrategy.OnPush,
   template: `
-    <section class="bg-slate-900 rounded-lg border border-slate-700 p-4">
+    <section class="bg-slate-900 rounded-lg border border-slate-600 border-l-4 border-l-amber-500 shadow-lg shadow-black/30 p-4">
       <div class="flex items-center justify-between mb-3">
-        <h2 class="text-sm font-semibold text-slate-300">Configuration du test de charge</h2>
+        <h2 class="text-sm font-semibold text-amber-300/80">Paramètres d'exécution</h2>
         <div class="flex gap-2">
           <button
             type="button"

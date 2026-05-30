@@ -44,7 +44,7 @@ const DEFAULT_VISIBLE = new Set(['reqPerMin', 'errPerMin', 'avg', 'p95']);
   standalone: true,
   changeDetection: ChangeDetectionStrategy.OnPush,
   template: `
-    <div class="bg-slate-900 rounded-lg border border-slate-700 p-4">
+    <div class="bg-slate-800/60 rounded-lg border border-slate-600 p-4">
       <div class="flex flex-wrap gap-x-4 gap-y-1 mb-3">
         @for (s of series; track s.key) {
           <label class="flex items-center gap-1.5 text-xs cursor-pointer select-none">
