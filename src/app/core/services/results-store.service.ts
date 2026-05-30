@@ -50,10 +50,11 @@ export class ResultsStoreService {
   private referenceSize = 0;
   private anomalyCount = 0;
   private sizeThresholdPct = 5;
+  private minResponseSize = 0;
   private errorBuffer: SingleCallResult[] = [];
   private anomalyBuffer: SingleCallResult[] = [];
 
-  reset(testStartMs: number, sizeThresholdPct: number): void {
+  reset(testStartMs: number, sizeThresholdPct: number, minResponseSize = 0): void {
     this._raw.length = 0;
     this._buckets.set([]);
     this._stats.set(emptyStats());
@@ -80,6 +81,7 @@ export class ResultsStoreService {
     this.referenceSize = 0;
     this.anomalyCount = 0;
     this.sizeThresholdPct = sizeThresholdPct;
+    this.minResponseSize = minResponseSize;
     this.errorBuffer = [];
     this.anomalyBuffer = [];
   }
@@ -95,6 +97,17 @@ export class ResultsStoreService {
     if (second !== this.currentSecond) {
       this.commitBucket();
       this.currentSecond = second;
+    }
+
+    // Absolute minimum size: a response smaller than the configured minimum
+    // is flagged as an error with a clear message.
+    if (
+      this.minResponseSize > 0 &&
+      !r.isError &&
+      r.responseBodySize < this.minResponseSize
+    ) {
+      r.isError = true;
+      r.errorDetail = `TAILLE INSUFFISANTE: ${r.responseBodySize} o reçus < minimum ${this.minResponseSize} o`;
     }
 
     // size anomaly detection on successful responses

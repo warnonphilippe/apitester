@@ -100,6 +100,12 @@ import { LoadConfig, RampMode } from '../../core/models/test-config.model';
           <input type="number" min="0" [(ngModel)]="cfg.sizeInconsistencyThresholdPct" (ngModelChange)="sync()"
             class="w-full mt-1 bg-slate-800 border border-slate-700 rounded px-2 py-1" />
         </label>
+        <label class="block">
+          <span class="text-slate-400">Taille min réponse (o, 0=∞ off)</span>
+          <input type="number" min="0" [(ngModel)]="cfg.minResponseSize" (ngModelChange)="sync()"
+            class="w-full mt-1 bg-slate-800 border border-slate-700 rounded px-2 py-1"
+            title="Toute réponse plus petite que cette taille (en octets) est marquée en erreur" />
+        </label>
       </div>
 
       @if (status() !== 'idle') {

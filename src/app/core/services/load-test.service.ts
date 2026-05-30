@@ -37,7 +37,7 @@ export class LoadTestService {
     this.currentSecondKey = 0;
     this.vuPromises = [];
 
-    this.store.reset(this.startMs, load.sizeInconsistencyThresholdPct);
+    this.store.reset(this.startMs, load.sizeInconsistencyThresholdPct, load.minResponseSize);
     this.totalDuration.set(load.durationSeconds);
     this.elapsedSeconds.set(0);
     this.activeVus.set(0);
