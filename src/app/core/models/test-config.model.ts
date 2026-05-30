@@ -58,7 +58,8 @@ export interface LoadConfig {
   maxRequestsPerSecond: number; // 0 = unlimited
   maxIterations: number; // 0 = unlimited
   stopOnErrorRate: number; // % , 0 = disabled
-  sizeInconsistencyThresholdPct: number; // deviation considered an anomaly
+  sizeInconsistencyThresholdPct: number; // deviation from reference median considered an anomaly
+  minResponseSize: number; // bytes; a response smaller than this is flagged as an error (0 = disabled)
 }
 
 export function defaultRequestConfig(): RequestConfig {
@@ -93,5 +94,6 @@ export function defaultLoadConfig(): LoadConfig {
     maxIterations: 0,
     stopOnErrorRate: 0,
     sizeInconsistencyThresholdPct: 5,
+    minResponseSize: 0,
   };
 }
