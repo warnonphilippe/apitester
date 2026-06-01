@@ -1,5 +1,6 @@
 import { ChangeDetectionStrategy, Component, inject, signal } from '@angular/core';
 import { FormsModule } from '@angular/forms';
+import { JsonPipe } from '@angular/common';
 import { lastValueFrom } from 'rxjs';
 import { ConfigStoreService } from '../../core/services/config-store.service';
 import { HttpRunnerService, SingleCallDetail } from '../../core/services/http-runner.service';
@@ -27,7 +28,7 @@ const VERB_CLASS: Record<HttpVerb, string> = {
 @Component({
   selector: 'app-request-config',
   standalone: true,
-  imports: [FormsModule, KvTableComponent],
+  imports: [FormsModule, KvTableComponent, JsonPipe],
   changeDetection: ChangeDetectionStrategy.OnPush,
   template: `
     <section class="bg-slate-900 rounded-lg border border-slate-600 border-l-4 border-l-blue-500 shadow-lg shadow-black/30">
@@ -125,9 +126,24 @@ const VERB_CLASS: Record<HttpVerb, string> = {
               }
             }
             @case ('form-data') {
+              <p class="text-xs text-amber-400/90 mb-2">
+                Envoyé en <span class="font-mono">multipart/form-data</span> (le navigateur fixe le boundary).
+                Mettez une ligne en « Fichier » pour joindre un document.
+                Ces lignes sont partagées avec l'onglet x-www-form-urlencoded.
+              </p>
               <app-kv-table [(rows)]="cfg.bodyFormFields" (rowsChange)="sync()" [allowFiles]="true" />
             }
             @case ('x-www-form-urlencoded') {
+              <p class="text-xs text-amber-400/90 mb-2">
+                Envoyé en <span class="font-mono">application/x-www-form-urlencoded</span> (paires clé=valeur).
+                ⚠ Les lignes de type « Fichier » définies en form-data ne sont
+                <strong>pas envoyées</strong> ici. Pour joindre un fichier, choisissez form-data.
+              </p>
+              @if (hasFileRow()) {
+                <p class="text-xs text-red-400 mb-2">
+                  ⚠ {{ fileRowCount() }} ligne(s) « Fichier » seront ignorée(s) dans ce mode.
+                </p>
+              }
               <app-kv-table [(rows)]="cfg.bodyFormFields" (rowsChange)="sync()" />
             }
             @case ('raw') {
@@ -242,24 +258,67 @@ const VERB_CLASS: Record<HttpVerb, string> = {
 
     <!-- Single test result -->
     @if (singleResult(); as r) {
-      <section class="mt-3 bg-slate-900 rounded-lg border border-slate-600 border-l-4 border-l-blue-500/50 shadow-md p-4 text-sm">
-        <div class="flex items-center gap-4 mb-2">
+      <section class="mt-3 bg-slate-900 rounded-lg border border-slate-600 border-l-4 border-l-blue-500/50 shadow-md p-4 text-sm space-y-3">
+
+        <!-- Statut + métriques -->
+        <div class="flex items-center gap-4">
           <span class="font-semibold">Résultat du test unique</span>
-          <span [class]="r.isError ? 'text-red-400' : 'text-emerald-400'">
-            Status {{ r.statusCode }}
+          <span [class]="r.isError ? 'text-red-400 font-bold' : 'text-emerald-400 font-bold'">
+            {{ r.statusCode || 'ERR' }}
           </span>
           <span class="text-slate-400">{{ r.durationMs }} ms</span>
-          <span class="text-slate-400">{{ r.responseBodySize }} octets</span>
+          <span class="text-slate-400">{{ r.responseBodySize }} o</span>
         </div>
-        @if (r.errorDetail) {
+
+        <!-- Requête envoyée (collapsible) -->
+        @if (r.requestUrl) {
+          <details class="group">
+            <summary class="cursor-pointer text-xs text-slate-400 hover:text-slate-200 select-none list-none flex items-center gap-1">
+              <span class="group-open:rotate-90 transition-transform inline-block">▶</span>
+              Requête envoyée
+            </summary>
+            <div class="mt-2 space-y-1">
+              <div class="flex gap-2 text-xs">
+                <span class="text-amber-400 font-bold">{{ r.requestMethod }}</span>
+                <span class="text-slate-300 break-all">{{ r.requestUrl }}</span>
+              </div>
+              @if (r.requestHeadersSent && objectKeys(r.requestHeadersSent).length) {
+                <pre class="bg-slate-950 rounded p-2 text-slate-400 text-xs overflow-auto max-h-32">{{ r.requestHeadersSent | json }}</pre>
+              }
+              @if (r.requestBodyPreview) {
+                <pre class="bg-slate-950 rounded p-2 text-slate-300 text-xs overflow-auto max-h-32">{{ r.requestBodyPreview }}</pre>
+              }
+            </div>
+          </details>
+        }
+
+        <!-- Corps de réponse / erreur -->
+        @if (r.errorDetail && r.statusCode === 0) {
           <pre class="bg-slate-950 rounded p-2 text-red-300 text-xs overflow-auto max-h-40">{{ r.errorDetail }}</pre>
         }
         @if (r.responseBodyPreview) {
-          <pre class="bg-slate-950 rounded p-2 text-slate-300 text-xs overflow-auto max-h-60">{{ r.responseBodyPreview }}</pre>
+          <div>
+            <p class="text-xs text-slate-500 mb-1">Corps de réponse</p>
+            <pre class="bg-slate-950 rounded p-2 text-slate-300 text-xs overflow-auto max-h-60">{{ r.responseBodyPreview }}</pre>
+          </div>
+        } @else if (r.isError && r.statusCode !== 0) {
+          <pre class="bg-slate-950 rounded p-2 text-red-300 text-xs overflow-auto max-h-40">{{ r.errorDetail }}</pre>
         }
+
+        <!-- Headers de réponse (collapsible) -->
+        @if (r.responseHeaders && objectKeys(r.responseHeaders).length) {
+          <details class="group">
+            <summary class="cursor-pointer text-xs text-slate-400 hover:text-slate-200 select-none list-none flex items-center gap-1">
+              <span class="group-open:rotate-90 transition-transform inline-block">▶</span>
+              Headers de réponse ({{ objectKeys(r.responseHeaders).length }})
+            </summary>
+            <pre class="mt-2 bg-slate-950 rounded p-2 text-slate-400 text-xs overflow-auto max-h-48">{{ r.responseHeaders | json }}</pre>
+          </details>
+        }
+
         @if (r.statusCode === 0 && !r.errorDetail) {
-          <p class="text-amber-400 text-xs mt-2">
-            Erreur réseau possible (CORS). Utilisez le proxy de dev Vite (/proxy) ou une extension navigateur.
+          <p class="text-amber-400 text-xs">
+            Erreur réseau possible (CORS). Utilisez le proxy Vite (/k8s-proxy/&lt;port&gt;/…).
           </p>
         }
       </section>
@@ -292,6 +351,17 @@ export class RequestConfigComponent {
   readonly singleResult = signal<SingleCallDetail | null>(null);
   readonly authResult = signal<string | null>(null);
   readonly authOk = signal(false);
+
+  readonly objectKeys = Object.keys;
+
+  /** Nombre de lignes marquées « Fichier » — ignorées en x-www-form-urlencoded. */
+  fileRowCount(): number {
+    return this.cfg.bodyFormFields.filter((f) => f.isFile).length;
+  }
+
+  hasFileRow(): boolean {
+    return this.fileRowCount() > 0;
+  }
 
   get tabs() {
     return [

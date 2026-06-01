@@ -19,6 +19,19 @@ export default defineConfig(({ mode }) => ({
         changeOrigin: true,
         secure: false,
       },
+      // Proxy direct vers le convertisseur gpdoc dans le cluster.
+      // Le host svc.cluster.local se résout depuis cette machine (VPN / /etc/hosts) —
+      // c'est le process Node de Vite qui appelle, donc PAS de CORS et, avec
+      // secure:false, le certificat auto-signé est ignoré (comme Postman).
+      // Usage dans l'app : http://localhost:4200/windoc-dev/api/convertStream
+      '/windoc-dev': {
+        target:
+          process.env['VITE_GPDOC_TARGET'] ??
+          'https://REDACTED.internal:8443',
+        rewrite: (path) => path.replace(/^\/windoc-dev/, ''),
+        changeOrigin: true,
+        secure: false, // accepte le certificat auto-signé du service
+      },
     },
   },
   build: {
