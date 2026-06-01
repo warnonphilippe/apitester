@@ -26,7 +26,7 @@ export default defineConfig(({ mode }) => ({
       // Usage dans l'app : http://localhost:4200/windoc-dev/api/convertStream
       '/windoc-dev': {
         target:
-          process.env['VITE_GPDOC_TARGET'] ??
+          process.env['VITE_WINDOC_DEV_TARGET'] ??
           'https://REDACTED.internal:8443',
         rewrite: (path) => path.replace(/^\/windoc-dev/, ''),
         changeOrigin: true,
