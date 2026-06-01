@@ -14,6 +14,11 @@ import { KeycloakAuthService } from './keycloak-auth.service';
 export interface SingleCallDetail extends SingleCallResult {
   responseHeaders?: Record<string, string>;
   responseBodyPreview?: string;
+  /** Informations sur la requête envoyée (utile pour debugger les 4xx/5xx). */
+  requestUrl?: string;
+  requestMethod?: string;
+  requestHeadersSent?: Record<string, string>;
+  requestBodyPreview?: string;
 }
 
 @Injectable({ providedIn: 'root' })
@@ -39,15 +44,16 @@ export class HttpRunnerService {
     return token$.pipe(
       switchMap((token) => {
         const t0 = performance.now(); // start AFTER the token is obtained
+        const reqInfo = this.buildRequestInfo(config, token);
         // observe:'response' => a single HttpResponse is emitted (no intermediate
         // Sent/Progress events), so the fetch backend is not torn down early.
         return this.request(config, token).pipe(
           timeout(config.timeoutMs),
-          map((response: HttpResponse<unknown>) =>
-            this.toResult(response, t0, vuId, iterationId),
+          map((response: HttpResponse<ArrayBuffer>) =>
+            this.toResult(response, t0, vuId, iterationId, reqInfo),
           ),
           catchError((err: unknown) =>
-            of(this.toErrorResult(err, t0, vuId, iterationId)),
+            of(this.toErrorResult(err, t0, vuId, iterationId, reqInfo)),
           ),
         );
       }),
@@ -72,6 +78,7 @@ export class HttpRunnerService {
     t0: number,
     vuId: number,
     iterationId: number,
+    reqInfo?: Partial<SingleCallDetail>,
   ): SingleCallDetail {
     const headers: Record<string, string> = {};
     response.headers.keys().forEach((k) => {
@@ -79,6 +86,7 @@ export class HttpRunnerService {
     });
     const contentType = response.headers.get('Content-Type') ?? '';
     return {
+      ...reqInfo,
       timestamp: Date.now(),
       durationMs: Math.round(performance.now() - t0),
       statusCode: response.status,
@@ -96,24 +104,41 @@ export class HttpRunnerService {
     t0: number,
     vuId: number,
     iterationId: number,
+    reqInfo?: Partial<SingleCallDetail>,
   ): SingleCallDetail {
     let statusCode = 0;
     let detail = this.messageOf(err);
     let size = 0;
+    let responseHeaders: Record<string, string> | undefined;
+    let responseBodyPreview: string | undefined;
+
     if (err instanceof HttpErrorResponse) {
       statusCode = err.status ?? 0;
-      const errBody = err.error instanceof ArrayBuffer ? err.error : null;
+
+      // Capture response headers (disponibles même en erreur).
+      if (err.headers) {
+        responseHeaders = {};
+        err.headers.keys().forEach((k) => {
+          responseHeaders![k] = err.headers.get(k) ?? '';
+        });
+      }
+
+      // Le fetch backend peut renvoyer le body d'erreur sous plusieurs formes.
+      const errBody = this.extractErrorBody(err.error);
       size = this.measureSize(errBody, err.headers);
       const contentType = err.headers.get('Content-Type') ?? '';
-      // status 0 means CORS/network failure
-      detail =
-        statusCode === 0
-          ? `NETWORK_OR_CORS_ERROR: ${err.message}`
-          : this.bodyPreview(errBody, contentType) ?? err.message;
+
+      if (statusCode === 0) {
+        detail = `NETWORK_OR_CORS_ERROR: ${err.message}`;
+      } else {
+        responseBodyPreview = this.bodyPreview(errBody, contentType);
+        detail = responseBodyPreview ?? err.message;
+      }
     } else if (this.messageOf(err).toLowerCase().includes('timeout')) {
       detail = 'TIMEOUT';
     }
     return {
+      ...reqInfo,
       timestamp: Date.now(),
       durationMs: Math.round(performance.now() - t0),
       statusCode,
@@ -122,6 +147,82 @@ export class HttpRunnerService {
       vuId,
       iterationId,
       errorDetail: detail,
+      responseHeaders,
+      responseBodyPreview,
+    };
+  }
+
+  /**
+   * Le fetch backend Angular peut livrer le corps d'erreur sous différentes
+   * formes selon la version et le responseType configuré.
+   * On normalise tout en ArrayBuffer pour `bodyPreview`.
+   */
+  private extractErrorBody(raw: unknown): ArrayBuffer | null {
+    if (!raw) return null;
+    if (raw instanceof ArrayBuffer) return raw;
+    // Fetch backend : parfois un Blob
+    if (raw instanceof Blob) return null; // async — non gérable ici de façon sync
+    // String brute (ex. responseType:'text' en fallback)
+    if (typeof raw === 'string' && raw.length > 0) {
+      return new TextEncoder().encode(raw).buffer as ArrayBuffer;
+    }
+    // Objet JSON parsé (responseType:'json' inféré par erreur)
+    if (typeof raw === 'object') {
+      try {
+        const json = JSON.stringify(raw, null, 2);
+        return new TextEncoder().encode(json).buffer as ArrayBuffer;
+      } catch {
+        return null;
+      }
+    }
+    return null;
+  }
+
+  /** Capture les infos de la requête avant envoi pour les afficher dans le résultat. */
+  private buildRequestInfo(config: RequestConfig, token: string | null): Partial<SingleCallDetail> {
+    const headers = this.buildHeaders(config, token);
+    const headersSent: Record<string, string> = {};
+    headers.keys().forEach((k) => { headersSent[k] = headers.get(k) ?? ''; });
+
+    let requestBodyPreview: string | undefined;
+    switch (config.bodyType) {
+      case 'json':
+        requestBodyPreview = config.bodyJson || undefined;
+        break;
+      case 'raw':
+        requestBodyPreview = config.bodyRaw
+          ? config.bodyRaw.slice(0, 2000) + (config.bodyRaw.length > 2000 ? '…' : '')
+          : undefined;
+        break;
+      case 'x-www-form-urlencoded': {
+        const p = config.bodyFormFields
+          .filter((f) => f.enabled && f.key)
+          .map((f) => `${encodeURIComponent(f.key)}=${encodeURIComponent(f.value)}`)
+          .join('&');
+        requestBodyPreview = p || undefined;
+        break;
+      }
+      case 'form-data': {
+        const parts = config.bodyFormFields
+          .filter((f) => f.enabled && f.key)
+          .map((f) => (f.isFile && f.file ? `${f.key}: [fichier] ${f.file.name}` : `${f.key}: ${f.value}`));
+        requestBodyPreview = parts.length ? parts.join('\n') : undefined;
+        break;
+      }
+      case 'binary':
+        requestBodyPreview = config.bodyBinaryFile
+          ? `[fichier binaire] ${config.bodyBinaryFile.name} (${config.bodyBinaryFile.size} o)`
+          : undefined;
+        break;
+      default:
+        requestBodyPreview = undefined;
+    }
+
+    return {
+      requestUrl: this.resolveUrl(config),
+      requestMethod: config.verb,
+      requestHeadersSent: headersSent,
+      requestBodyPreview,
     };
   }
 
