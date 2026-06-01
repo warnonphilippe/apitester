@@ -26,7 +26,7 @@ export default defineConfig(({ mode }) => ({
       // Usage dans l'app : http://localhost:4200/service-b/api/convertStream
       '/service-b': {
         target:
-          process.env['VITE_GPDOC_TARGET'] ??
+          process.env['VITE_SECOND_TARGET'] ??
           'https://REDACTED.internal:8443',
         rewrite: (path) => path.replace(/^\/service-b/, ''),
         changeOrigin: true,
