@@ -28,6 +28,49 @@ npm run build    # sortie dans dist/
 npm run preview  # prévisualise le build
 ```
 
+## Déploiement Docker
+
+Les scripts de déploiement se trouvent dans le répertoire [`deploy/`](deploy/).
+
+### Build et publication sur Docker Hub
+
+```bash
+# Dernière version (tag latest)
+./deploy/deploy.sh
+
+# Version taguée
+./deploy/deploy.sh 1.2.3
+```
+
+Cela construit et pousse deux images **multi-arch** (amd64 + arm64) sur Docker Hub :
+- `pwarnon/apitester` — frontend Angular servi par nginx
+- `pwarnon/apitester-echo` — serveur echo Node.js (port 8888)
+
+### Lancer l'application sur un autre Mac / PC
+
+Copier le fichier [`deploy/apitester.yml`](deploy/apitester.yml) sur la machine cible, puis :
+
+```bash
+# Démarrer (télécharge les images automatiquement)
+docker compose -f apitester.yml up -d
+
+# Accéder à http://localhost:4200
+
+# Mettre à jour
+docker compose -f apitester.yml pull
+docker compose -f apitester.yml up -d
+
+# Arrêter
+docker compose -f apitester.yml down
+```
+
+Les variables d'environnement suivantes peuvent être ajustées dans `apitester.yml` :
+
+| Variable | Rôle | Défaut |
+|---|---|---|
+| `PROXY_TARGET` | Cible du proxy `/proxy/...` (contournement CORS) | `http://localhost:8080` |
+| `WINDOC_DEV_TARGET` | Cible du proxy `/windoc-dev/...` | `http://localhost:8443` |
+
 ## CORS
 
 Les appels partent du navigateur : l'API cible doit renvoyer les en-têtes CORS, sinon utilisez le proxy de dev Vite. Pointez votre URL sur `/proxy/...` et définissez la cible :

@@ -1,0 +1,40 @@
+server {
+    listen 80;
+
+    root /usr/share/nginx/html;
+    index index.html;
+
+    # SPA — toujours renvoyer index.html pour le routing Angular
+    location / {
+        try_files $uri $uri/ /index.html;
+    }
+
+    # Proxy générique : /proxy/... → PROXY_TARGET/...
+    # Permet de contourner les problèmes CORS côté navigateur.
+    # Configurer via la variable d'env PROXY_TARGET (ex : http://mon-api:8080)
+    location /proxy/ {
+        proxy_pass ${PROXY_TARGET}/;
+        proxy_http_version 1.1;
+        proxy_set_header Host              $proxy_host;
+        proxy_set_header X-Real-IP         $remote_addr;
+        proxy_set_header X-Forwarded-For   $proxy_add_x_forwarded_for;
+        proxy_set_header X-Forwarded-Proto $scheme;
+        proxy_ssl_verify off;
+        proxy_read_timeout 300s;
+        proxy_send_timeout 300s;
+    }
+
+    # Proxy windoc-dev : /windoc-dev/... → WINDOC_DEV_TARGET/...
+    # Configurer via la variable d'env WINDOC_DEV_TARGET
+    location /windoc-dev/ {
+        proxy_pass ${WINDOC_DEV_TARGET}/;
+        proxy_http_version 1.1;
+        proxy_set_header Host              $proxy_host;
+        proxy_set_header X-Real-IP         $remote_addr;
+        proxy_set_header X-Forwarded-For   $proxy_add_x_forwarded_for;
+        proxy_set_header X-Forwarded-Proto $scheme;
+        proxy_ssl_verify off;
+        proxy_read_timeout 300s;
+        proxy_send_timeout 300s;
+    }
+}

@@ -1,0 +1,42 @@
+services:
+
+  apitester:
+    image: pwarnon/apitester:latest
+    container_name: apitester
+    ports:
+      - "4200:80"
+    environment:
+      # Proxy générique : les requêtes vers /proxy/... sont redirigées ici.
+      # Utile pour contourner le CORS d'une API distante.
+      # Exemple : http://mon-api.interne:8080
+      - PROXY_TARGET=http://localhost:8080
+
+      # Proxy windoc-dev : les requêtes vers /windoc-dev/... sont redirigées ici.
+      # Exemple : https://REDACTED.internal:8443
+      - WINDOC_DEV_TARGET=http://localhost:8443
+    restart: unless-stopped
+
+  echo-server:
+    image: pwarnon/apitester-echo:latest
+    container_name: apitester-echo
+    ports:
+      - "8888:8888"
+    restart: unless-stopped
+
+# ─── Utilisation ────────────────────────────────────────────────────────────
+#
+#  1. Copier ce fichier sur n'importe quel Mac / PC avec Docker installé.
+#
+#  2. Adapter les variables d'env PROXY_TARGET et WINDOC_DEV_TARGET si besoin.
+#
+#  3. Démarrer :
+#       docker compose -f apitester.yml up -d
+#
+#  4. Ouvrir http://localhost:4200
+#
+#  5. Arrêter :
+#       docker compose -f apitester.yml down
+#
+#  6. Mettre à jour vers la dernière version :
+#       docker compose -f apitester.yml pull
+#       docker compose -f apitester.yml up -d
