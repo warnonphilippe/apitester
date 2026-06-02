@@ -1,0 +1,10 @@
+{
+  "/proxy": {
+    "target": "http://mon-api:8080",
+    "secure": false
+  },
+  "/windoc-dev": {
+    "target": "https://autre-service:8443",
+    "secure": false
+  }
+}

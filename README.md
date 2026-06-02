@@ -66,7 +66,12 @@ docker compose -f apitester.yml down
 
 ### Configuration du proxy
 
-Les routes proxy (contournement CORS) sont définies dans [`proxy.config.json`](proxy.config.json) à la racine du projet. Ce fichier est lu automatiquement par Vite en développement **et** par nginx dans Docker.
+Les routes proxy (contournement CORS) sont définies dans `proxy.config.json` à la racine du projet. Ce fichier est lu automatiquement par Vite en développement **et** par nginx dans Docker.
+
+> 🔒 `proxy.config.json` est **ignoré par git** (il peut contenir des URLs internes/sensibles). Un modèle versionné [`proxy.config.example.json`](proxy.config.example.json) documente le format — copiez-le :
+> ```bash
+> cp proxy.config.example.json proxy.config.json
+> ```
 
 ```json
 {
@@ -85,7 +90,7 @@ Chaque clé est un préfixe d'URL ; le préfixe est retiré avant de relayer la 
 
 #### Sur le poste de développement (source)
 
-Le fichier est à la racine du projet et versionné avec le code. Vite le lit au démarrage de `npm run dev`.
+Créer le fichier à la racine (`cp proxy.config.example.json proxy.config.json`) et l'adapter. Vite le lit au démarrage de `npm run dev`. Il n'est pas versionné.
 
 #### Sur un poste client (Docker)
 
