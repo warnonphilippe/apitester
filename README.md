@@ -83,7 +83,31 @@ Les routes proxy (contournement CORS) sont définies dans [`proxy.config.json`](
 
 Chaque clé est un préfixe d'URL ; le préfixe est retiré avant de relayer la requête (ex. `/proxy/users` → `http://mon-api:8080/users`). On peut ajouter autant d'entrées que nécessaire.
 
-Pour un déploiement Docker sur une autre machine, placer un `proxy.config.json` dans le même répertoire que `apitester.yml` — il est monté automatiquement dans le container via le volume défini dans le compose.
+#### Sur le poste de développement (source)
+
+Le fichier est à la racine du projet et versionné avec le code. Vite le lit au démarrage de `npm run dev`.
+
+#### Sur un poste client (Docker)
+
+Le fichier **n'est pas intégré dans l'image** — il doit être placé **dans le même répertoire qu'`apitester.yml`** :
+
+```
+~/apitester/            ← ou n'importe quel dossier
+├── apitester.yml
+└── proxy.config.json
+```
+
+```bash
+docker compose -f apitester.yml up -d
+```
+
+Le volume `./proxy.config.json:/etc/nginx/proxy.config.json:ro` dans le compose le monte dans le container ; `entrypoint.sh` génère la config nginx au démarrage. Pour prendre en compte une modification du fichier :
+
+```bash
+docker compose -f apitester.yml restart apitester
+```
+
+> Sans `proxy.config.json`, le container démarre normalement mais sans aucun proxy configuré.
 
 ## CORS
 
