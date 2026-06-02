@@ -3,3 +3,7 @@ dist/
 .angular/
 *.log
 .DS_Store
+
+# Config proxy locale — peut contenir des URLs internes / sensibles.
+# Voir proxy.config.example.json pour le format.
+proxy.config.json
