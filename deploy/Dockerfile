@@ -8,10 +8,9 @@ RUN npm run build
 
 # Stage 2 — serve with nginx
 FROM nginx:alpine
-RUN apk add --no-cache gettext
+RUN apk add --no-cache jq
 
 COPY --from=builder /app/dist /usr/share/nginx/html
-COPY deploy/nginx.conf.template /etc/nginx/nginx.conf.template
 COPY deploy/entrypoint.sh /entrypoint.sh
 RUN chmod +x /entrypoint.sh
 

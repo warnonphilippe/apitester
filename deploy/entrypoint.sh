@@ -1,15 +1,43 @@
 #!/bin/sh
 set -e
 
-# Valeurs par défaut pour les proxies
-PROXY_TARGET="${PROXY_TARGET:-http://localhost:8080}"
-WINDOC_DEV_TARGET="${WINDOC_DEV_TARGET:-http://localhost:8443}"
+PROXY_CONFIG="/etc/nginx/proxy.config.json"
+NGINX_CONF="/etc/nginx/conf.d/default.conf"
 
-export PROXY_TARGET WINDOC_DEV_TARGET
+# Base — single-quoted heredoc preserves $uri etc. as literal nginx variables
+cat > "$NGINX_CONF" << 'EOF'
+server {
+    listen 80;
+    root /usr/share/nginx/html;
+    index index.html;
 
-# Substitue uniquement les variables du template (pas les variables nginx comme $uri)
-envsubst '${PROXY_TARGET} ${WINDOC_DEV_TARGET}' \
-  < /etc/nginx/nginx.conf.template \
-  > /etc/nginx/conf.d/default.conf
+    location / {
+        try_files $uri $uri/ /index.html;
+    }
+
+EOF
+
+# Proxy locations générés dynamiquement depuis proxy.config.json
+if [ -f "$PROXY_CONFIG" ]; then
+    echo "→ Chargement proxy.config.json"
+    jq -r '
+      to_entries[] |
+      "    location " + .key + "/ {\n" +
+      "        proxy_pass " + .value.target + "/;\n" +
+      "        proxy_http_version 1.1;\n" +
+      "        proxy_set_header Host $proxy_host;\n" +
+      "        proxy_set_header X-Real-IP $remote_addr;\n" +
+      "        proxy_set_header X-Forwarded-For $proxy_add_x_forwarded_for;\n" +
+      "        proxy_set_header X-Forwarded-Proto $scheme;\n" +
+      "        proxy_ssl_verify " + (if .value.secure == false then "off" else "on" end) + ";\n" +
+      "        proxy_read_timeout 300s;\n" +
+      "        proxy_send_timeout 300s;\n" +
+      "    }\n"
+    ' "$PROXY_CONFIG" >> "$NGINX_CONF"
+else
+    echo "→ Aucun proxy.config.json trouvé, démarrage sans proxy."
+fi
+
+echo "}" >> "$NGINX_CONF"
 
 exec nginx -g 'daemon off;'

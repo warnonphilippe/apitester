@@ -1,7 +1,35 @@
 import { defineConfig } from 'vite';
 import angular from '@analogjs/vite-plugin-angular';
+import { readFileSync, existsSync } from 'fs';
+import { fileURLToPath } from 'url';
+import { dirname, resolve } from 'path';
 
-// https://vitejs.dev/config/
+const __dirname = dirname(fileURLToPath(import.meta.url));
+
+interface ProxyEntry {
+  target: string;
+  secure?: boolean;
+}
+
+function loadProxyConfig(): Record<string, object> {
+  const configPath = resolve(__dirname, 'proxy.config.json');
+  if (!existsSync(configPath)) return {};
+
+  const raw = JSON.parse(readFileSync(configPath, 'utf-8')) as Record<string, ProxyEntry>;
+
+  return Object.fromEntries(
+    Object.entries(raw).map(([prefix, opts]) => [
+      prefix,
+      {
+        target: opts.target,
+        changeOrigin: true,
+        secure: opts.secure ?? false,
+        rewrite: (path: string) => path.replace(new RegExp('^' + prefix), ''),
+      },
+    ]),
+  );
+}
+
 export default defineConfig(({ mode }) => ({
   plugins: [angular({ tsconfig: 'tsconfig.app.json' })],
   resolve: {
@@ -10,29 +38,7 @@ export default defineConfig(({ mode }) => ({
   server: {
     port: 4200,
     host: true,
-    // Dev proxy to bypass CORS when testing an API that does not send CORS headers.
-    // Point your request URL at /proxy/... and set VITE_PROXY_TARGET to the real host.
-    proxy: {
-      '/proxy': {
-        target: process.env['VITE_PROXY_TARGET'] ?? 'http://localhost:8080',
-        rewrite: (path) => path.replace(/^\/proxy/, ''),
-        changeOrigin: true,
-        secure: false,
-      },
-      // Proxy direct vers le convertisseur gpdoc dans le cluster.
-      // Le host svc.cluster.local se résout depuis cette machine (VPN / /etc/hosts) —
-      // c'est le process Node de Vite qui appelle, donc PAS de CORS et, avec
-      // secure:false, le certificat auto-signé est ignoré (comme Postman).
-      // Usage dans l'app : http://localhost:4200/windoc-dev/api/convertStream
-      '/windoc-dev': {
-        target:
-          process.env['VITE_WINDOC_DEV_TARGET'] ??
-          'https://REDACTED.internal:8443',
-        rewrite: (path) => path.replace(/^\/windoc-dev/, ''),
-        changeOrigin: true,
-        secure: false, // accepte le certificat auto-signé du service
-      },
-    },
+    proxy: loadProxyConfig(),
   },
   build: {
     target: 'es2022',

@@ -5,15 +5,11 @@ services:
     container_name: apitester
     ports:
       - "4200:80"
-    environment:
-      # Proxy générique : les requêtes vers /proxy/... sont redirigées ici.
-      # Utile pour contourner le CORS d'une API distante.
-      # Exemple : http://mon-api.interne:8080
-      - PROXY_TARGET=http://localhost:8080
-
-      # Proxy windoc-dev : les requêtes vers /windoc-dev/... sont redirigées ici.
-      # Exemple : https://REDACTED.internal:8443
-      - WINDOC_DEV_TARGET=http://localhost:8443
+    volumes:
+      # Monter votre proxy.config.json pour configurer les routes proxy (contournement CORS).
+      # Format : { "/prefix": { "target": "http://host:port", "secure": false } }
+      # Télécharger l'exemple : https://github.com/pwarnon/apitester/blob/master/proxy.config.json
+      - ./proxy.config.json:/etc/nginx/proxy.config.json:ro
     restart: unless-stopped
 
   echo-server:
@@ -27,7 +23,11 @@ services:
 #
 #  1. Copier ce fichier sur n'importe quel Mac / PC avec Docker installé.
 #
-#  2. Adapter les variables d'env PROXY_TARGET et WINDOC_DEV_TARGET si besoin.
+#  2. Créer un fichier proxy.config.json dans le même répertoire :
+#       {
+#         "/proxy": { "target": "http://mon-api:8080", "secure": false }
+#       }
+#     (optionnel — sans ce fichier, l'app démarre sans proxy)
 #
 #  3. Démarrer :
 #       docker compose -f apitester.yml up -d

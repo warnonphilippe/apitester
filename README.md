@@ -64,22 +64,36 @@ docker compose -f apitester.yml up -d
 docker compose -f apitester.yml down
 ```
 
-Les variables d'environnement suivantes peuvent être ajustées dans `apitester.yml` :
+### Configuration du proxy
 
-| Variable | Rôle | Défaut |
-|---|---|---|
-| `PROXY_TARGET` | Cible du proxy `/proxy/...` (contournement CORS) | `http://localhost:8080` |
-| `WINDOC_DEV_TARGET` | Cible du proxy `/windoc-dev/...` | `http://localhost:8443` |
+Les routes proxy (contournement CORS) sont définies dans [`proxy.config.json`](proxy.config.json) à la racine du projet. Ce fichier est lu automatiquement par Vite en développement **et** par nginx dans Docker.
+
+```json
+{
+  "/proxy": {
+    "target": "http://mon-api:8080",
+    "secure": false
+  },
+  "/windoc-dev": {
+    "target": "https://autre-service:8443",
+    "secure": false
+  }
+}
+```
+
+Chaque clé est un préfixe d'URL ; le préfixe est retiré avant de relayer la requête (ex. `/proxy/users` → `http://mon-api:8080/users`). On peut ajouter autant d'entrées que nécessaire.
+
+Pour un déploiement Docker sur une autre machine, placer un `proxy.config.json` dans le même répertoire que `apitester.yml` — il est monté automatiquement dans le container via le volume défini dans le compose.
 
 ## CORS
 
-Les appels partent du navigateur : l'API cible doit renvoyer les en-têtes CORS, sinon utilisez le proxy de dev Vite. Pointez votre URL sur `/proxy/...` et définissez la cible :
+Les appels partent du navigateur : l'API cible doit renvoyer les en-têtes CORS, sinon utilisez le proxy. Éditez [`proxy.config.json`](proxy.config.json) pour pointer vers votre API :
 
-```bash
-VITE_PROXY_TARGET=http://mon-api:8080 npm run dev
+```json
+{ "/proxy": { "target": "http://mon-api:8080", "secure": false } }
 ```
 
-`/proxy/users` est alors relayé vers `http://mon-api:8080/users`.
+Puis utilisez `/proxy/...` comme URL dans l'app — `/proxy/users` est relayé vers `http://mon-api:8080/users`, aussi bien en dev (`npm run dev`) qu'en Docker.
 
 ## Structure
 
