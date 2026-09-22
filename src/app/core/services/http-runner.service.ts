@@ -182,7 +182,10 @@ export class HttpRunnerService {
   private buildRequestInfo(config: RequestConfig, token: string | null): Partial<SingleCallDetail> {
     const headers = this.buildHeaders(config, token);
     const headersSent: Record<string, string> = {};
-    headers.keys().forEach((k) => { headersSent[k] = headers.get(k) ?? ''; });
+    headers.keys().forEach((k) => {
+      // Masqué : cette info finit dans l'export JSON des résultats.
+      headersSent[k] = this.SENSITIVE_HEADERS.test(k) ? '***' : headers.get(k) ?? '';
+    });
 
     let requestBodyPreview: string | undefined;
     switch (config.bodyType) {
@@ -335,6 +338,10 @@ export class HttpRunnerService {
     }
     return 0;
   }
+
+  /** En-têtes porteurs d'un identifiant : leur valeur n'est jamais conservée. */
+  private readonly SENSITIVE_HEADERS =
+    /^(authorization|proxy-authorization|cookie|x-api-key)$/i;
 
   private readonly TEXTUAL = /(text\/|json|xml|javascript|x-www-form-urlencoded|csv|html|graphql)/i;
 

@@ -124,6 +124,12 @@ Les appels partent du navigateur : l'API cible doit renvoyer les en-têtes CORS,
 
 Puis utilisez `/proxy/...` comme URL dans l'app — `/proxy/users` est relayé vers `http://mon-api:8080/users`, aussi bien en dev (`npm run dev`) qu'en Docker.
 
+## Données & confidentialité
+
+- **Identifiants** — le Client Secret et le mot de passe OAuth2 ne vivent qu'en mémoire, le temps de la session. Ils ne sont écrits ni dans le `localStorage` ni dans la configuration exportée : il faut les ressaisir après un rechargement de la page. Dans les résultats, la valeur des en-têtes `Authorization`, `Cookie` et `X-API-Key` est remplacée par `***`.
+- **Exports de résultats** — l'export JSON brut et le CSV des erreurs contiennent des extraits du corps des requêtes envoyées **et des réponses de l'API testée**. Si cette API renvoie des données à caractère personnel, ces fichiers en contiennent : traitez-les comme tels (RGPD) — ne les partagez pas, ne les commitez pas, supprimez-les après analyse.
+- **`proxy.config.json`** n'est pas versionné : il contient la configuration propre à chaque poste.
+
 ## Structure
 
 ```

@@ -16,7 +16,8 @@ export class ConfigStoreService {
 
   constructor() {
     this.restore();
-    // Auto-save (debounced) on any change. Files are not serializable.
+    // Auto-save (debounced) on any change. Files are not serializable and
+    // credentials are deliberately left out (see stripSecrets).
     let handle: ReturnType<typeof setTimeout> | null = null;
     effect(() => {
       const req = this.request();
@@ -39,10 +40,11 @@ export class ConfigStoreService {
    * API, a native "Save As" dialog lets the user pick the name AND location.
    * Otherwise we prompt for a file name and fall back to a regular download
    * (the location is then the browser's default download folder).
+   * The OAuth2 client secret and password are never written to the file.
    */
   async exportToFile(): Promise<void> {
     const data = {
-      request: this.stripFiles(this.request()),
+      request: this.stripSecrets(this.stripFiles(this.request())),
       load: this.load(),
     };
     const json = JSON.stringify(data, null, 2);
@@ -122,9 +124,21 @@ export class ConfigStoreService {
     };
   }
 
+  /**
+   * Drops the OAuth2 credentials from a config that is about to leave memory.
+   * They live in the running session only: never in localStorage, never in an
+   * exported file the user could share or commit by mistake.
+   */
+  private stripSecrets(req: RequestConfig): RequestConfig {
+    const auth = { ...req.auth };
+    delete auth.clientSecret;
+    delete auth.password;
+    return { ...req, auth };
+  }
+
   private persist(request: RequestConfig, load: LoadConfig): void {
     try {
-      const data = { request: this.stripFiles(request), load };
+      const data = { request: this.stripSecrets(this.stripFiles(request)), load };
       localStorage.setItem(STORAGE_KEY, JSON.stringify(data));
     } catch {
       // storage full / unavailable -> ignore
