@@ -212,6 +212,7 @@ src/app/
   shared/components/   # kv-table réutilisable
 electron/main.js       # app de bureau : fenêtre, schéma app://, CORS désactivé
 electron-builder.yml   # packaging .dmg (macOS arm64) et .exe (Windows x64)
+build/icon.svg         # icône de l'app de bureau (source ; icon.png 1024 px en est le rendu)
 vite-cors-proxy.ts     # relais /__proxy/… en dev (pendant nginx : deploy/entrypoint.sh)
 ```
 
