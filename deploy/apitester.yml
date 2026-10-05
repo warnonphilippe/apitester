@@ -4,11 +4,17 @@ services:
     image: pwarnon/apitester:latest
     container_name: apitester
     ports:
-      - "4200:80"
+      # Lié à 127.0.0.1 : le proxy dynamique (/__proxy/…) relaie vers n'importe
+      # quelle cible et ne doit pas être utilisable depuis le reste du réseau.
+      - "127.0.0.1:4200:80"
+    extra_hosts:
+      # « localhost » saisi dans l'app est relayé vers le poste hôte
+      # (déjà fourni par Docker Desktop sur Mac/Windows, nécessaire sous Linux).
+      - "host.docker.internal:host-gateway"
     volumes:
-      # Monter votre proxy.config.json pour configurer les routes proxy (contournement CORS).
+      # Optionnel : alias de proxy déclarés (le proxy dynamique n'en a pas besoin).
       # Format : { "/prefix": { "target": "http://host:port", "secure": false } }
-      # Télécharger l'exemple : https://github.com/pwarnon/apitester/blob/master/proxy.config.json
+      # Modèle : https://github.com/warnonphilippe/apitester/blob/master/proxy.config.example.json
       - ./proxy.config.json:/etc/nginx/proxy.config.json:ro
     restart: unless-stopped
 
@@ -23,11 +29,12 @@ services:
 #
 #  1. Copier ce fichier sur n'importe quel Mac / PC avec Docker installé.
 #
-#  2. Créer un fichier proxy.config.json dans le même répertoire :
+#  2. Pour un serveur sans en-têtes CORS : cocher « Via proxy » dans l'app,
+#     aucune configuration requise.
+#     Optionnel — alias courts dans un proxy.config.json du même répertoire :
 #       {
 #         "/proxy": { "target": "http://mon-api:8080", "secure": false }
 #       }
-#     (optionnel — sans ce fichier, l'app démarre sans proxy)
 #
 #  3. Démarrer :
 #       docker compose -f apitester.yml up -d

@@ -52,6 +52,13 @@ const VERB_CLASS: Record<HttpVerb, string> = {
           class="flex-1 bg-slate-800 border border-slate-700 rounded px-3 py-2 font-mono text-sm focus:border-blue-500 outline-none"
           aria-label="URL de la requête"
         />
+        <label
+          class="flex items-center gap-2 px-2 text-sm text-slate-300 cursor-pointer select-none whitespace-nowrap"
+          title="Relaie l'appel (et la demande de token Keycloak) par l'apitester : n'importe quel serveur, sans contrainte CORS. Ajoute un saut local au temps mesuré."
+        >
+          <input type="checkbox" [(ngModel)]="cfg.useProxy" (ngModelChange)="sync()" class="accent-blue-500" />
+          Via proxy
+        </label>
         <button
           type="button"
           (click)="runSingle()"
@@ -281,6 +288,9 @@ const VERB_CLASS: Record<HttpVerb, string> = {
               <div class="flex gap-2 text-xs">
                 <span class="text-amber-400 font-bold">{{ r.requestMethod }}</span>
                 <span class="text-slate-300 break-all">{{ r.requestUrl }}</span>
+                @if (r.viaProxy) {
+                  <span class="shrink-0 px-1.5 rounded bg-blue-500/20 text-blue-300">via proxy</span>
+                }
               </div>
               @if (r.requestHeadersSent && objectKeys(r.requestHeadersSent).length) {
                 <pre class="bg-slate-950 rounded p-2 text-slate-400 text-xs overflow-auto max-h-32">{{ r.requestHeadersSent | json }}</pre>
@@ -316,9 +326,9 @@ const VERB_CLASS: Record<HttpVerb, string> = {
           </details>
         }
 
-        @if (r.statusCode === 0 && !r.errorDetail) {
+        @if (corsSuspected(r)) {
           <p class="text-amber-400 text-xs">
-            Erreur réseau possible (CORS). Utilisez le proxy Vite (/k8s-proxy/&lt;port&gt;/…).
+            Erreur réseau ou CORS : cochez « Via proxy » pour relayer l'appel par l'apitester.
           </p>
         }
       </section>
@@ -361,6 +371,13 @@ export class RequestConfigComponent {
 
   hasFileRow(): boolean {
     return this.fileRowCount() > 0;
+  }
+
+  /** Appel direct bloqué par le navigateur (CORS) ou cible injoignable — API ou Keycloak. */
+  corsSuspected(r: SingleCallDetail): boolean {
+    if (r.viaProxy || r.statusCode !== 0) return false;
+    const detail = r.errorDetail ?? '';
+    return detail.startsWith('NETWORK_OR_CORS_ERROR') || detail.includes('Keycloak token error 0:');
   }
 
   get tabs() {
@@ -411,7 +428,7 @@ export class RequestConfigComponent {
     this.authTesting.set(true);
     this.authResult.set(null);
     try {
-      const token = await lastValueFrom(this.keycloak.fetchToken(this.cfg.auth));
+      const token = await lastValueFrom(this.keycloak.fetchToken(this.cfg.auth, this.cfg.useProxy));
       this.authOk.set(true);
       this.authResult.set(`OK — token: ${token.slice(0, 24)}…`);
     } catch (e) {

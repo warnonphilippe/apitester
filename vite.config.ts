@@ -3,6 +3,7 @@ import angular from '@analogjs/vite-plugin-angular';
 import { readFileSync, existsSync } from 'fs';
 import { fileURLToPath } from 'url';
 import { dirname, resolve } from 'path';
+import { corsProxy } from './vite-cors-proxy';
 
 const __dirname = dirname(fileURLToPath(import.meta.url));
 
@@ -31,7 +32,9 @@ function loadProxyConfig(): Record<string, object> {
 }
 
 export default defineConfig(({ mode }) => ({
-  plugins: [angular({ tsconfig: 'tsconfig.app.json' })],
+  // corsProxy : relais /__proxy/<scheme>/<hôte>/… vers n'importe quelle cible.
+  // Il coexiste avec les alias déclarés dans proxy.config.json.
+  plugins: [angular({ tsconfig: 'tsconfig.app.json' }), corsProxy()],
   resolve: {
     mainFields: ['module'],
   },

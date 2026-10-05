@@ -44,6 +44,8 @@ export interface RequestConfig {
   bodyBinaryFile: File | null;
   auth: AuthConfig;
   timeoutMs: number;
+  /** Relaie l'appel (et la demande de token) via le proxy dynamique de l'apitester. */
+  useProxy: boolean;
 }
 
 export type RampMode = 'fixed' | 'ramp-up' | 'step';
@@ -79,6 +81,7 @@ export function defaultRequestConfig(): RequestConfig {
     bodyBinaryFile: null,
     auth: { type: 'none' },
     timeoutMs: 30000,
+    useProxy: false,
   };
 }
 

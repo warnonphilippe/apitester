@@ -10,6 +10,7 @@ import { Observable, catchError, map, of, switchMap, timeout } from 'rxjs';
 import { KeyValueParam, RequestConfig } from '../models/test-config.model';
 import { SingleCallResult } from '../models/test-result.model';
 import { KeycloakAuthService } from './keycloak-auth.service';
+import { PROXY_HEADER, toProxyUrl } from '../utils/proxy-url';
 
 export interface SingleCallDetail extends SingleCallResult {
   responseHeaders?: Record<string, string>;
@@ -19,6 +20,8 @@ export interface SingleCallDetail extends SingleCallResult {
   requestMethod?: string;
   requestHeadersSent?: Record<string, string>;
   requestBodyPreview?: string;
+  /** Appel relayé par le proxy dynamique de l'apitester. */
+  viaProxy?: boolean;
 }
 
 @Injectable({ providedIn: 'root' })
@@ -38,7 +41,7 @@ export class HttpRunnerService {
   ): Observable<SingleCallDetail> {
     const token$: Observable<string | null> =
       config.auth.type === 'oauth2-password'
-        ? this.keycloak.fetchToken(config.auth)
+        ? this.keycloak.fetchToken(config.auth, config.useProxy)
         : of(null);
 
     return token$.pipe(
@@ -68,6 +71,7 @@ export class HttpRunnerService {
           vuId,
           iterationId,
           errorDetail: `AUTH_ERROR: ${this.messageOf(tokenErr)}`,
+          viaProxy: config.useProxy,
         }),
       ),
     );
@@ -226,6 +230,7 @@ export class HttpRunnerService {
       requestMethod: config.verb,
       requestHeadersSent: headersSent,
       requestBodyPreview,
+      viaProxy: config.useProxy,
     };
   }
 
@@ -234,10 +239,16 @@ export class HttpRunnerService {
     config: RequestConfig,
     token: string | null,
   ): Observable<HttpResponse<ArrayBuffer>> {
-    const url = this.resolveUrl(config);
+    let url = this.resolveUrl(config);
     const params = this.buildQueryParams(config.queryParams);
-    const headers = this.buildHeaders(config, token);
+    let headers = this.buildHeaders(config, token);
     const body = this.buildBody(config);
+    // Ajouté ici et non dans buildHeaders : « Headers envoyés » montre ce que
+    // reçoit la cible, le relais retirant cet en-tête.
+    if (config.useProxy) {
+      url = toProxyUrl(url);
+      headers = headers.set(PROXY_HEADER, '1');
+    }
 
     return this.http.request(config.verb, url, {
       body,

@@ -13,6 +13,7 @@ Application **Angular 20 + Vite** pour effectuer des **tests de masse / de charg
 - **Détection d'incohérences de taille** : la taille médiane des 5 premières réponses sert de référence ; toute réponse qui en dévie de plus du seuil (%) est signalée.
 - **Exports** : JSON brut, CSV (stats/s, erreurs, incohérences).
 - **Sauvegarde / chargement** de la config (`.apitester.json`) + auto-save localStorage.
+- **Proxy dynamique « Via proxy »** : appelle n'importe quel serveur, même sans en-têtes CORS, sans rien déclarer à l'avance (voir [CORS](#cors)).
 
 ## Démarrage
 
@@ -70,9 +71,9 @@ docker compose -f apitester.yml up -d
 docker compose -f apitester.yml down
 ```
 
-### Configuration du proxy
+### Alias de proxy (optionnel)
 
-Les routes proxy (contournement CORS) sont définies dans `proxy.config.json` à la racine du projet. Ce fichier est lu automatiquement par Vite en développement **et** par nginx dans Docker.
+Pour contourner CORS, la case **« Via proxy »** suffit : aucune configuration (voir [CORS](#cors)). `proxy.config.json` reste disponible pour définir des **alias courts** (`/proxy/users` au lieu de l'URL complète). Ce fichier est lu automatiquement par Vite en développement **et** par nginx dans Docker.
 
 > 🔒 `proxy.config.json` est **ignoré par git** (il contient la configuration propre a chaque poste). Un modèle versionné [`proxy.config.example.json`](proxy.config.example.json) documente le format — copiez-le :
 > ```bash
@@ -118,17 +119,43 @@ Le volume `./proxy.config.json:/etc/nginx/proxy.config.json:ro` dans le compose 
 docker compose -f apitester.yml restart apitester
 ```
 
-> Sans `proxy.config.json`, le container démarre normalement mais sans aucun proxy configuré.
+> Sans `proxy.config.json`, le container démarre normalement, sans alias ; le proxy dynamique reste disponible.
 
 ## CORS
 
-Les appels partent du navigateur : l'API cible doit renvoyer les en-têtes CORS, sinon utilisez le proxy. Éditez [`proxy.config.json`](proxy.config.json) pour pointer vers votre API :
+Les appels partent du navigateur : sans en-têtes CORS renvoyés par l'API cible, le navigateur les bloque (`NETWORK_OR_CORS_ERROR`). Deux façons de contourner cela, en dev (`npm run dev`) comme en Docker.
+
+### « Via proxy » — n'importe quel serveur, sans configuration
+
+Cochez **« Via proxy »** à côté de l'URL. L'appel (et la demande de token Keycloak) est alors relayé par l'apitester lui-même :
+
+```
+https://api.exemple.com:8443/v1/users?x=1
+→ /__proxy/https/api.exemple.com:8443/v1/users?x=1
+```
+
+Le navigateur reste sur sa propre origine, donc plus de CORS, et aucune cible n'est à déclarer ni à redémarrer. Le relais est un middleware Vite en dev ([`vite-cors-proxy.ts`](vite-cors-proxy.ts)) et nginx en Docker ([`deploy/entrypoint.sh`](deploy/entrypoint.sh)). Il :
+
+- retire `Origin`, `Referer` et `Cookie` : l'appel ressemble à un appel serveur à serveur ;
+- ramène les redirections (`Location`) dans le relais ;
+- n'impose pas de certificat TLS valide (comme `"secure": false`) ;
+- renvoie un 502 `APITESTER_PROXY_ERROR` si la cible est injoignable.
+
+À savoir :
+
+- **Mesure** : le relais ajoute un saut local au temps mesuré. Il est négligeable avec nginx. Le serveur Vite, mono-processus, peut en revanche saturer avant l'API sous forte charge : préférez l'image Docker pour les gros tirs, ou un appel direct si l'API gère CORS.
+- **Docker** : `localhost` / `127.0.0.1` saisis dans l'app désignent le poste hôte (via `host.docker.internal`), et non le container.
+- **Sécurité** : le relais exige l'en-tête `X-Apitester-Proxy: 1`, que l'app ajoute. Un site tiers ne peut pas le poser sans preflight CORS, jamais validé. Le relais n'accepte que des appels locaux : vérification de l'adresse en dev, port publié sur `127.0.0.1` dans [`deploy/apitester.yml`](deploy/apitester.yml).
+
+### Alias déclarés dans `proxy.config.json`
+
+Pour une URL courte vers une API récurrente, déclarez un préfixe (voir [Alias de proxy](#alias-de-proxy-optionnel)) :
 
 ```json
 { "/proxy": { "target": "http://mon-api:8080", "secure": false } }
 ```
 
-Puis utilisez `/proxy/...` comme URL dans l'app — `/proxy/users` est relayé vers `http://mon-api:8080/users`, aussi bien en dev (`npm run dev`) qu'en Docker.
+Puis utilisez `/proxy/...` comme URL dans l'app, sans cocher « Via proxy » : `/proxy/users` est relayé vers `http://mon-api:8080/users`.
 
 ## Données & confidentialité
 
@@ -143,11 +170,13 @@ src/app/
   core/
     models/      # interfaces (RequestConfig, LoadConfig, résultats)
     services/    # keycloak-auth, http-runner, load-test, results-store, config-store
+    utils/       # proxy-url (réécriture vers le proxy dynamique)
   features/
     request-config/   # formulaire de requête (onglets)
     load-config/      # paramètres du test de charge
     results/          # dashboard + chart-panel
   shared/components/   # kv-table réutilisable
+vite-cors-proxy.ts     # relais /__proxy/… en dev (pendant nginx : deploy/entrypoint.sh)
 ```
 
 ## Notes techniques

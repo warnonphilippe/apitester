@@ -11,6 +11,7 @@ import {
   throwError,
 } from 'rxjs';
 import { AuthConfig } from '../models/test-config.model';
+import { PROXY_HEADER, toProxyUrl } from '../utils/proxy-url';
 
 interface TokenResponse {
   access_token: string;
@@ -49,7 +50,8 @@ export class KeycloakAuthService {
   private readonly cache = new Map<string, CacheEntry>();
   private readonly inFlight = new Map<string, Observable<string>>();
 
-  fetchToken(auth: AuthConfig): Observable<string> {
+  /** `viaProxy` : la Token URL est relayée par le proxy dynamique (contourne CORS). */
+  fetchToken(auth: AuthConfig, viaProxy = false): Observable<string> {
     const key = this.cacheKey(auth);
 
     // 1) Token encore valide en cache → réutilisation immédiate, aucun appel réseau.
@@ -65,7 +67,7 @@ export class KeycloakAuthService {
     }
 
     // 3) Sinon on lance UNE requête, partagée par tous les abonnés concurrents.
-    const request$ = this.requestToken(auth).pipe(
+    const request$ = this.requestToken(auth, viaProxy).pipe(
       tap((res) => {
         const ttlSeconds = res.expires_in ?? this.DEFAULT_TTL_SECONDS;
         const expiresAt = Date.now() + Math.max(0, ttlSeconds * 1000 - this.RENEW_SKEW_MS);
@@ -85,7 +87,7 @@ export class KeycloakAuthService {
     this.inFlight.clear();
   }
 
-  private requestToken(auth: AuthConfig): Observable<TokenResponse> {
+  private requestToken(auth: AuthConfig, viaProxy: boolean): Observable<TokenResponse> {
     let body = new HttpParams()
       .set('grant_type', 'password')
       .set('client_id', auth.clientId ?? '')
@@ -99,12 +101,17 @@ export class KeycloakAuthService {
       body = body.set('scope', auth.scope);
     }
 
-    const headers = new HttpHeaders({
+    let headers = new HttpHeaders({
       'Content-Type': 'application/x-www-form-urlencoded',
     });
+    let url = auth.tokenUrl ?? '';
+    if (viaProxy) {
+      url = toProxyUrl(url);
+      headers = headers.set(PROXY_HEADER, '1');
+    }
 
     return this.http
-      .post<TokenResponse>(auth.tokenUrl ?? '', body.toString(), { headers })
+      .post<TokenResponse>(url, body.toString(), { headers })
       .pipe(
         map((res) => {
           if (!res?.access_token) {
