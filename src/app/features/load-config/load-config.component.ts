@@ -1,4 +1,5 @@
 import { ChangeDetectionStrategy, Component, computed, inject } from '@angular/core';
+import { DecimalPipe } from '@angular/common';
 import { FormsModule } from '@angular/forms';
 import { ConfigStoreService } from '../../core/services/config-store.service';
 import { LoadTestService } from '../../core/services/load-test.service';
@@ -7,7 +8,7 @@ import { LoadConfig, RampMode } from '../../core/models/test-config.model';
 @Component({
   selector: 'app-load-config',
   standalone: true,
-  imports: [FormsModule],
+  imports: [DecimalPipe, FormsModule],
   changeDetection: ChangeDetectionStrategy.OnPush,
   template: `
     <section class="bg-slate-900 rounded-lg border border-slate-600 border-l-4 border-l-amber-500 shadow-lg shadow-black/30 p-4">
