@@ -6,8 +6,17 @@ Sert à tester l'upload multipart et la cohérence de taille de réponse de l'AP
 ## Démarrage
 
 ```bash
+./server/start.sh            # http://localhost:8888, depuis n'importe quel dossier ; Ctrl+C pour arrêter
+PORT=9000 ./server/start.sh  # autre port
+```
+
+Le script installe les dépendances si besoin (`npm ci`) et s'arrête avec un message clair si le port est déjà pris. Pratique avec l'app de bureau, qui n'embarque pas ce serveur.
+
+À la main :
+
+```bash
 cd server
-npm install
+npm ci
 npm start          # http://localhost:8888  (npm run dev pour le rechargement auto)
 ```
 

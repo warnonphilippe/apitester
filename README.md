@@ -69,6 +69,8 @@ Les paquets **ne sont pas signés** par un certificat d'éditeur (pas de compte 
 
 La configuration est conservée entre deux lancements (stockage local de l'app). « Sauvegarder la config » et les exports ouvrent le dialogue natif « Enregistrer sous ».
 
+Le [serveur de test](server/README.md) n'est pas embarqué dans l'app : lancez-le à part avec `./server/start.sh` (http://localhost:8888).
+
 ## Déploiement Docker
 
 Les scripts de déploiement se trouvent dans le répertoire [`deploy/`](deploy/).
