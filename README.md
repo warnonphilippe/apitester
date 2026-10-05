@@ -1,6 +1,6 @@
 # API Load Tester
 
-Application **Angular 19 + Vite** pour effectuer des **tests de masse / de charge réels** sur une API REST, directement depuis le navigateur.
+Application **Angular 20 + Vite** pour effectuer des **tests de masse / de charge réels** sur une API REST, directement depuis le navigateur.
 
 > ⚠️ **Pas de simulation.** Chaque virtual user émet de vraies requêtes HTTP vers l'API cible et mesure les vraies réponses (status, durée, taille). Aucun mock.
 
@@ -153,6 +153,7 @@ src/app/
 ## Notes techniques
 
 - `provideHttpClient(withFetch())` — backend fetch natif, mesure fiable de la taille via `responseType: 'text'` + `Content-Length`.
+- Requêtes émises avec `cache: 'no-store'` (option `fetch` exposée par `HttpClient` depuis Angular 20) : sans cela, Chrome met en file d'attente les GET identiques simultanés (verrou du cache HTTP) et le temps mesuré inclut cette attente.
 - Les VUs sont des boucles async sur le thread principal (pas de Web Workers — `HttpClient` n'y est pas disponible).
 - Le graphe et les stats sont rafraîchis une fois par seconde (buckets) pour ne pas saturer le DOM.
 ```

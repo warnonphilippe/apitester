@@ -247,6 +247,10 @@ export class HttpRunnerService {
       // arraybuffer => exact byte count for ANY payload (PDF, image, zip, JSON…).
       // Text is decoded only for the human-readable preview.
       responseType: 'arraybuffer',
+      // no-store => bypasses the browser HTTP cache. Without it, Chrome serialises
+      // concurrent identical GETs behind a cache lock: VUs end up waiting for each
+      // other and the measured duration includes that queueing time.
+      cache: 'no-store',
     });
   }
 
