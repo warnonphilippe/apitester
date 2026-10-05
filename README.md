@@ -21,6 +21,12 @@ npm install
 npm run dev      # serveur de dev sur http://localhost:4200
 ```
 
+Ou, pour lancer en une commande l'apitester **et** le [serveur echo de test](server/README.md) (http://localhost:8888), Ctrl+C arrêtant les deux :
+
+```bash
+./start.sh
+```
+
 Build de production :
 
 ```bash
