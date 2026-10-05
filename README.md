@@ -43,12 +43,12 @@ L'apitester existe aussi en **application de bureau** pour macOS (Apple Silicon)
 ### Construire
 
 ```bash
-npm run electron    # build + lance l'app localement (sans packaging)
-npm run dist:mac    # release/apitester-<version>-mac-arm64.dmg
-npm run dist:win    # release/apitester-<version>-win-x64.exe (installeur)
+./release/build.sh       # release/apitester-<version>-mac-arm64.dmg (macOS uniquement)
+./release/build-win.sh   # release/apitester-<version>-win-x64.exe (installeur Windows)
+npm run electron         # build + lance l'app localement, sans packaging
 ```
 
-Les deux paquets se construisent depuis un Mac, Windows compris : electron-builder produit l'installeur NSIS sans Wine. Configuration : [`electron-builder.yml`](electron-builder.yml) ; processus principal : [`electron/main.js`](electron/main.js).
+Les scripts lancent `npm ci` si les dépendances manquent ou sont périmées, puis `npm run dist:mac` / `npm run dist:win`. L'installeur Windows se construit depuis un Mac sans Wine (electron-builder) ; sur un PC Windows, lancer directement `npm run dist:win`. Configuration : [`electron-builder.yml`](electron-builder.yml) ; processus principal : [`electron/main.js`](electron/main.js).
 
 ### Installer
 
