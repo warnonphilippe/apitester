@@ -1,0 +1,13 @@
+{
+  "name": "apitester-demo",
+  "version": "1.0.0",
+  "private": true,
+  "description": "Enregistre en vidéo (Playwright) une démo de test de charge avec upload de fichier",
+  "type": "module",
+  "scripts": {
+    "record": "node record-demo.mjs"
+  },
+  "dependencies": {
+    "playwright": "^1.63.0"
+  }
+}

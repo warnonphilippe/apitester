@@ -37,7 +37,7 @@ SERVER_PID=$!
 
 cleanup() {
   trap - INT TERM EXIT
-  kill "$SERVER_PID" 2>/dev/null || true
+  kill "$SERVER_PID" ${BANNER_PID:-} 2>/dev/null || true
   wait "$SERVER_PID" 2>/dev/null || true
 }
 trap cleanup INT TERM EXIT
@@ -51,6 +51,40 @@ for _ in $(seq 1 25); do
   fi
   sleep 0.2
 done
+
+print_test_info() {
+  cat <<EOF
+
+  ────────────────────────────────────────────────────────────────
+   apitester           http://localhost:$APP_PORT
+
+   URL de test         http://localhost:$ECHO_PORT/test
+     dans l'app : verbe GET, cette URL, 6 VUs max conseillés
+     80 % ~1 s · 10 % 1,5-3 s · 5 % ~5 s · 5 % erreurs 5xx
+
+   Test de conversion  POST http://localhost:$ECHO_PORT/test-convert
+     Body form-data, champ « file » de type Fichier
+     75 % ~1 s · 10 % 1,5-3 s · 5 % ~5 s · 5 % erreurs · 5 % taille /2
+
+   Upload (echo)       POST http://localhost:$ECHO_PORT/echo   (même body)
+  ────────────────────────────────────────────────────────────────
+
+EOF
+}
+
+# Affiche l'URL de test une fois Vite prêt, pour qu'elle apparaisse sous
+# son message de démarrage. Vite reste au premier plan (Ctrl+C fiable).
+(
+  for _ in $(seq 1 150); do
+    if curl -sf -o /dev/null --max-time 2 "http://localhost:$APP_PORT/"; then
+      sleep 0.3
+      print_test_info
+      exit 0
+    fi
+    sleep 0.2
+  done
+) &
+BANNER_PID=$!
 
 cd "$ROOT"
 npm run dev

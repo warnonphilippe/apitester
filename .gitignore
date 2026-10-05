@@ -7,3 +7,6 @@ dist/
 # Config proxy locale — peut contenir des URLs internes / sensibles.
 # Voir proxy.config.example.json pour le format.
 proxy.config.json
+
+# Démo filmée : vidéos, captures et fichier générés par demo/record-demo.mjs
+demo/output/
