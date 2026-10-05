@@ -12,6 +12,7 @@ import {
   RequestConfig,
 } from '../../core/models/test-config.model';
 import { KvTableComponent } from '../../shared/components/kv-table.component';
+import { RELAY_AVAILABLE } from '../../core/utils/proxy-url';
 
 type Tab = 'params' | 'headers' | 'body' | 'auth';
 
@@ -52,13 +53,15 @@ const VERB_CLASS: Record<HttpVerb, string> = {
           class="flex-1 bg-slate-800 border border-slate-700 rounded px-3 py-2 font-mono text-sm focus:border-blue-500 outline-none"
           aria-label="URL de la requête"
         />
-        <label
-          class="flex items-center gap-2 px-2 text-sm text-slate-300 cursor-pointer select-none whitespace-nowrap"
-          title="Relaie l'appel (et la demande de token Keycloak) par l'apitester : n'importe quel serveur, sans contrainte CORS. Ajoute un saut local au temps mesuré."
-        >
-          <input type="checkbox" [(ngModel)]="cfg.useProxy" (ngModelChange)="sync()" class="accent-blue-500" />
-          Via proxy
-        </label>
+        @if (relayAvailable) {
+          <label
+            class="flex items-center gap-2 px-2 text-sm text-slate-300 cursor-pointer select-none whitespace-nowrap"
+            title="Relaie l'appel (et la demande de token Keycloak) par l'apitester : n'importe quel serveur, sans contrainte CORS. Ajoute un saut local au temps mesuré."
+          >
+            <input type="checkbox" [(ngModel)]="cfg.useProxy" (ngModelChange)="sync()" class="accent-blue-500" />
+            Via proxy
+          </label>
+        }
         <button
           type="button"
           (click)="runSingle()"
@@ -363,6 +366,8 @@ export class RequestConfigComponent {
   readonly authOk = signal(false);
 
   readonly objectKeys = Object.keys;
+  /** Faux dans l'app de bureau : CORS n'y s'applique pas, la case n'a pas lieu d'être. */
+  readonly relayAvailable = RELAY_AVAILABLE;
 
   /** Nombre de lignes marquées « Fichier » — ignorées en x-www-form-urlencoded. */
   fileRowCount(): number {
@@ -373,9 +378,12 @@ export class RequestConfigComponent {
     return this.fileRowCount() > 0;
   }
 
-  /** Appel direct bloqué par le navigateur (CORS) ou cible injoignable — API ou Keycloak. */
+  /**
+   * Appel direct bloqué par le navigateur (CORS) ou cible injoignable — API ou Keycloak.
+   * Jamais dans l'app de bureau : sans CORS, un statut 0 y signifie « injoignable ».
+   */
   corsSuspected(r: SingleCallDetail): boolean {
-    if (r.viaProxy || r.statusCode !== 0) return false;
+    if (!RELAY_AVAILABLE || r.viaProxy || r.statusCode !== 0) return false;
     const detail = r.errorDetail ?? '';
     return detail.startsWith('NETWORK_OR_CORS_ERROR') || detail.includes('Keycloak token error 0:');
   }
@@ -428,7 +436,7 @@ export class RequestConfigComponent {
     this.authTesting.set(true);
     this.authResult.set(null);
     try {
-      const token = await lastValueFrom(this.keycloak.fetchToken(this.cfg.auth, this.cfg.useProxy));
+      const token = await lastValueFrom(this.keycloak.fetchToken(this.cfg.auth, this.runner.viaProxy(this.cfg)));
       this.authOk.set(true);
       this.authResult.set(`OK — token: ${token.slice(0, 24)}…`);
     } catch (e) {

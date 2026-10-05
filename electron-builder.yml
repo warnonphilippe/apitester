@@ -1,0 +1,38 @@
+# Packaging de l'application de bureau — npm run dist:mac / npm run dist:win
+appId: io.github.warnonphilippe.apitester
+productName: API Load Tester
+artifactName: apitester-${version}-${os}-${arch}.${ext}
+
+directories:
+  output: release
+  buildResources: build
+
+# Vite embarque déjà tout le front dans dist/ : rien d'autre à empaqueter.
+# (Les libs Angular sont en devDependencies, electron-builder n'empaquetant
+# que les « dependencies ».)
+files:
+  - dist/**/*
+  - electron/**/*
+  - package.json
+asar: true
+
+mac:
+  target:
+    - target: dmg
+      arch: [arm64]
+  category: public.app-category.developer-tools
+  # Pas de compte Apple Developer : signature ad hoc, indispensable pour qu'une
+  # app arm64 se lance. Sur un autre Mac, lever la quarantaine (voir README).
+  identity: '-'
+  hardenedRuntime: false
+
+win:
+  target:
+    - target: nsis
+      arch: [x64]
+
+nsis:
+  # Installation par utilisateur, sans droits administrateur.
+  oneClick: false
+  perMachine: false
+  allowToChangeInstallationDirectory: true

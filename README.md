@@ -14,6 +14,7 @@ Application **Angular 20 + Vite** pour effectuer des **tests de masse / de charg
 - **Exports** : JSON brut, CSV (stats/s, erreurs, incohérences).
 - **Sauvegarde / chargement** de la config (`.apitester.json`) + auto-save localStorage.
 - **Proxy dynamique « Via proxy »** : appelle n'importe quel serveur, même sans en-têtes CORS, sans rien déclarer à l'avance (voir [CORS](#cors)).
+- **Application de bureau** macOS / Windows (Electron) : appels directs vers n'importe quel serveur, sans CORS ni proxy (voir [Application de bureau](#application-de-bureau-electron)).
 
 ## Démarrage
 
@@ -34,6 +35,39 @@ Build de production :
 npm run build    # sortie dans dist/
 npm run preview  # prévisualise le build
 ```
+
+## Application de bureau (Electron)
+
+L'apitester existe aussi en **application de bureau** pour macOS (Apple Silicon) et Windows (x64). Elle appelle **n'importe quel serveur directement**, sans proxy ni configuration : la fenêtre de l'app n'applique pas CORS.
+
+### Construire
+
+```bash
+npm run electron    # build + lance l'app localement (sans packaging)
+npm run dist:mac    # release/apitester-<version>-mac-arm64.dmg
+npm run dist:win    # release/apitester-<version>-win-x64.exe (installeur)
+```
+
+Les deux paquets se construisent depuis un Mac, Windows compris : electron-builder produit l'installeur NSIS sans Wine. Configuration : [`electron-builder.yml`](electron-builder.yml) ; processus principal : [`electron/main.js`](electron/main.js).
+
+### Installer
+
+Les paquets **ne sont pas signés** par un certificat d'éditeur (pas de compte Apple Developer ni de certificat Windows) :
+
+- **macOS** : ouvrir le `.dmg` et glisser l'app dans Applications. Une app téléchargée est mise en quarantaine (« endommagée » ou « développeur non identifié ») ; lever la quarantaine une fois :
+  ```bash
+  xattr -dr com.apple.quarantine "/Applications/API Load Tester.app"
+  ```
+- **Windows** : lancer l'installeur (installation par utilisateur, sans droits administrateur). Si SmartScreen affiche « Windows a protégé votre ordinateur » : *Informations complémentaires* → *Exécuter quand même*.
+
+### Appels réseau
+
+- **Pas de CORS** (`webSecurity: false`) : chaque requête, API comme Keycloak, part en direct vers la cible. Pas de preflight, pas de relais, et le temps mesuré est le vrai temps réseau.
+- **`Origin` et `Referer` sont retirés** des requêtes sortantes. Sinon la cible recevrait `Origin: app://apitester`, et un backend doté d'une config CORS (Spring…) répondrait 403. Coût mesuré : environ 0,1 ms par requête.
+- **La case « Via proxy » n'apparaît pas** : elle n'y sert à rien. Une config importée avec « Via proxy » coché fonctionne telle quelle, en direct.
+- **La fenêtre est durcie** pour compenser : pas d'accès Node, sandbox, aucun contenu distant chargé, navigation et ouverture de fenêtres bloquées hors de l'app.
+
+La configuration est conservée entre deux lancements (stockage local de l'app). « Sauvegarder la config » et les exports ouvrent le dialogue natif « Enregistrer sous ».
 
 ## Déploiement Docker
 
@@ -170,12 +204,14 @@ src/app/
   core/
     models/      # interfaces (RequestConfig, LoadConfig, résultats)
     services/    # keycloak-auth, http-runner, load-test, results-store, config-store
-    utils/       # proxy-url (réécriture vers le proxy dynamique)
+    utils/       # proxy-url (réécriture vers le proxy dynamique), platform (app de bureau ?)
   features/
     request-config/   # formulaire de requête (onglets)
     load-config/      # paramètres du test de charge
     results/          # dashboard + chart-panel
   shared/components/   # kv-table réutilisable
+electron/main.js       # app de bureau : fenêtre, schéma app://, CORS désactivé
+electron-builder.yml   # packaging .dmg (macOS arm64) et .exe (Windows x64)
 vite-cors-proxy.ts     # relais /__proxy/… en dev (pendant nginx : deploy/entrypoint.sh)
 ```
 

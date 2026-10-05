@@ -1,3 +1,5 @@
+import { IS_DESKTOP_APP } from './platform';
+
 /**
  * Proxy dynamique : l'apitester relaie lui-même l'appel vers la cible
  * (middleware Vite en dev, nginx en Docker). La requête du navigateur reste
@@ -18,6 +20,12 @@ export const PROXY_PREFIX = '/__proxy';
  * le retire avant de transmettre à la cible.
  */
 export const PROXY_HEADER = 'X-Apitester-Proxy';
+
+/**
+ * Faux dans l'app de bureau : aucun relais n'y répond et il n'en faut pas,
+ * la fenêtre Electron n'appliquant pas CORS.
+ */
+export const RELAY_AVAILABLE = !IS_DESKTOP_APP;
 
 /**
  * Réécrit une URL absolue http(s) vers le proxy dynamique. Une URL relative

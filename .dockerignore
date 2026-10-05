@@ -1,0 +1,8 @@
+# Contexte de build Docker : uniquement les sources (le builder fait son propre npm ci).
+.git
+node_modules
+server/node_modules
+demo
+dist
+release
+proxy.config.json

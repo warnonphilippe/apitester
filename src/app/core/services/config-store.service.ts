@@ -5,6 +5,7 @@ import {
   defaultLoadConfig,
   defaultRequestConfig,
 } from '../models/test-config.model';
+import { IS_DESKTOP_APP } from '../utils/platform';
 
 const STORAGE_KEY = 'apitester.config.v1';
 
@@ -50,6 +51,14 @@ export class ConfigStoreService {
     const json = JSON.stringify(data, null, 2);
     const blob = new Blob([json], { type: 'application/json' });
     const defaultName = 'config.apitester.json';
+
+    // App de bureau : un téléchargement y ouvre déjà le dialogue natif
+    // « Enregistrer sous » (nom ET emplacement), et window.prompt n'existe pas
+    // dans Electron.
+    if (IS_DESKTOP_APP) {
+      this.download(blob, defaultName);
+      return;
+    }
 
     const picker = (
       window as unknown as {

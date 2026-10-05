@@ -10,7 +10,7 @@ import { Observable, catchError, map, of, switchMap, timeout } from 'rxjs';
 import { KeyValueParam, RequestConfig } from '../models/test-config.model';
 import { SingleCallResult } from '../models/test-result.model';
 import { KeycloakAuthService } from './keycloak-auth.service';
-import { PROXY_HEADER, toProxyUrl } from '../utils/proxy-url';
+import { PROXY_HEADER, RELAY_AVAILABLE, toProxyUrl } from '../utils/proxy-url';
 
 export interface SingleCallDetail extends SingleCallResult {
   responseHeaders?: Record<string, string>;
@@ -39,9 +39,10 @@ export class HttpRunnerService {
     vuId: number,
     iterationId: number,
   ): Observable<SingleCallDetail> {
+    const viaProxy = this.viaProxy(config);
     const token$: Observable<string | null> =
       config.auth.type === 'oauth2-password'
-        ? this.keycloak.fetchToken(config.auth, config.useProxy)
+        ? this.keycloak.fetchToken(config.auth, viaProxy)
         : of(null);
 
     return token$.pipe(
@@ -71,7 +72,7 @@ export class HttpRunnerService {
           vuId,
           iterationId,
           errorDetail: `AUTH_ERROR: ${this.messageOf(tokenErr)}`,
-          viaProxy: config.useProxy,
+          viaProxy,
         }),
       ),
     );
@@ -230,7 +231,7 @@ export class HttpRunnerService {
       requestMethod: config.verb,
       requestHeadersSent: headersSent,
       requestBodyPreview,
-      viaProxy: config.useProxy,
+      viaProxy: this.viaProxy(config),
     };
   }
 
@@ -245,7 +246,7 @@ export class HttpRunnerService {
     const body = this.buildBody(config);
     // Ajouté ici et non dans buildHeaders : « Headers envoyés » montre ce que
     // reçoit la cible, le relais retirant cet en-tête.
-    if (config.useProxy) {
+    if (this.viaProxy(config)) {
       url = toProxyUrl(url);
       headers = headers.set(PROXY_HEADER, '1');
     }
@@ -263,6 +264,11 @@ export class HttpRunnerService {
       // other and the measured duration includes that queueing time.
       cache: 'no-store',
     });
+  }
+
+  /** « Via proxy » coché ET relais disponible (jamais dans l'app de bureau). */
+  viaProxy(config: RequestConfig): boolean {
+    return config.useProxy && RELAY_AVAILABLE;
   }
 
   private resolveUrl(config: RequestConfig): string {

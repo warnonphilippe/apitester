@@ -1,6 +1,8 @@
 # Stage 1 — build Angular frontend
 FROM node:22-alpine AS builder
 WORKDIR /app
+# Electron (devDependency de l'app de bureau) est inutile pour l'image web.
+ENV ELECTRON_SKIP_BINARY_DOWNLOAD=1
 COPY package*.json ./
 RUN npm ci
 COPY . .

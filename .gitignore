@@ -10,3 +10,6 @@ proxy.config.json
 
 # Démo filmée : vidéos, captures et fichier générés par demo/record-demo.mjs
 demo/output/
+
+# Paquets Electron générés par electron-builder (npm run dist:mac / dist:win)
+release/
